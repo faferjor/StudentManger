@@ -1,0 +1,9 @@
+C:/Users/fafer/Desktop/studentManager/client/build/CMakeFiles/StudentTopicSystemClient.dir
+C:/Users/fafer/Desktop/studentManager/client/build/CMakeFiles/edit_cache.dir
+C:/Users/fafer/Desktop/studentManager/client/build/CMakeFiles/rebuild_cache.dir
+C:/Users/fafer/Desktop/studentManager/client/build/CMakeFiles/list_install_components.dir
+C:/Users/fafer/Desktop/studentManager/client/build/CMakeFiles/install.dir
+C:/Users/fafer/Desktop/studentManager/client/build/CMakeFiles/install/local.dir
+C:/Users/fafer/Desktop/studentManager/client/build/CMakeFiles/install/strip.dir
+C:/Users/fafer/Desktop/studentManager/client/build/CMakeFiles/StudentTopicSystemClient_autogen_timestamp_deps.dir
+C:/Users/fafer/Desktop/studentManager/client/build/CMakeFiles/StudentTopicSystemClient_autogen.dir

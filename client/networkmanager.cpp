@@ -22,6 +22,18 @@ NetworkManager::~NetworkManager()
     socket->deleteLater();
 }
 
+//实现设置/获取 Token：
+void NetworkManager::setSessionToken(const QString& token)
+{
+    sessionToken = token;
+}
+
+QString NetworkManager::getSessionToken() const
+{
+    return sessionToken;
+}
+
+
 void NetworkManager::connectToServer(const QString& hostName, quint16 port)
 {
     if (connectionState == Connecting || connectionState == Connected) {
@@ -64,7 +76,7 @@ void NetworkManager::resetConnection()
 {
     connectionState = Disconnected;
     buffer.clear();
-    
+
     // 清除所有待处理请求
     QMapIterator<QString, QTimer*> it(timeoutTimers);
     while (it.hasNext()) {
@@ -73,61 +85,68 @@ void NetworkManager::resetConnection()
         it.value()->deleteLater();
     }
     timeoutTimers.clear();
-    pendingRequests.clear();
-    
+    pendingCallbacks.clear();   // 原为 pendingRequests.clear()
+
     emit connectionStateChanged(connectionState);
 }
-
 NetworkManager::ConnectionState NetworkManager::getConnectionState() const
 {
     return connectionState;
 }
 
-QString NetworkManager::sendRequest(const QString& command, const QJsonObject& data)
+
+QString NetworkManager::sendRequest(const QString& command, const QJsonObject& data,
+                                    std::function<void(bool, const QJsonObject&)> callback)
 {
     if (connectionState != Connected) {
         lastErrorType = ConnectionError;
         lastError = "Not connected to server";
         emit errorOccurred(lastErrorType, lastError);
+        if (callback) callback(false, QJsonObject());
         return QString();
     }
 
     QString requestId = generateRequestId();
     QJsonObject request = createRequest(command, data);
     request["request_id"] = requestId;
+    if (!sessionToken.isEmpty()) {
+        request["token"] = sessionToken;
+    }
 
     QJsonDocument doc(request);
     QByteArray jsonData = doc.toJson(QJsonDocument::Compact) + "\n";
 
-    QMutexLocker locker(&mutex);
+   // QMutexLocker locker(&mutex);
     qint64 bytesWritten = socket->write(jsonData);
     socket->flush();
+    //确认客户端确实写入了 socket
+    qDebug() << "Wrote" << bytesWritten << "bytes, jsonData:" << jsonData;
 
     if (bytesWritten != jsonData.size()) {
         lastErrorType = NetworkError;
         lastError = "Failed to send complete request";
         emit errorOccurred(lastErrorType, lastError);
+        if (callback) callback(false, QJsonObject());
         return QString();
     }
 
-    // 设置请求超时
-    pendingRequests[requestId] = QDateTime::currentDateTime();
+    // 存储回调
+    PendingRequest pending;
+    pending.timestamp = QDateTime::currentDateTime();
+    pending.callback = callback;
+    pendingCallbacks[requestId] = pending;
+
+    // 设置超时
     QTimer* timer = new QTimer(this);
     timer->setSingleShot(true);
     timer->setInterval(timeoutMs);
     connect(timer, &QTimer::timeout, this, [this, requestId]() {
-        pendingRequests.remove(requestId);
+        if (pendingCallbacks.contains(requestId)) {
+            auto cb = pendingCallbacks[requestId].callback;
+            pendingCallbacks.remove(requestId);
+            if (cb) cb(false, QJsonObject());
+        }
         timeoutTimers.remove(requestId);
-        
-        lastErrorType = TimeoutError;
-        lastError = "Request timed out: " + requestId;
-        emit errorOccurred(lastErrorType, lastError);
-        
-        QJsonObject response;
-        response["request_id"] = requestId;
-        response["status"] = "fail";
-        response["message"] = lastError;
-        emit responseReceived(requestId, response);
     });
     timeoutTimers[requestId] = timer;
     timer->start();
@@ -161,15 +180,25 @@ QString NetworkManager::sendRequestWithUserInfo(const QString& command, const QJ
 
 void NetworkManager::setCurrentUser(int userId, int userType, const QString& username)
 {
-    QMutexLocker locker(&mutex);
+    //======测试
+    // qDebug() << "setCurrentUser: start, userId=" << userId;
+    // QMutexLocker locker(&mutex);
+    qDebug() << "setCurrentUser:  locked";
     currentUserId = userId;
     currentUserType = userType;
     currentUsername = username;
+    qDebug() << "setCurrentUser: end";
+
+
+    // QMutexLocker locker(&mutex);
+    // currentUserId = userId;
+    // currentUserType = userType;
+    // currentUsername = username;
 }
 
 QJsonObject NetworkManager::getCurrentUser() const
 {
-    QMutexLocker locker(const_cast<QMutex*>(&mutex));
+   // QMutexLocker locker(const_cast<QMutex*>(&mutex));
     QJsonObject userInfo;
     userInfo["user_id"] = currentUserId;
     userInfo["user_type"] = currentUserType;
@@ -179,10 +208,13 @@ QJsonObject NetworkManager::getCurrentUser() const
 
 void NetworkManager::clearCurrentUser()
 {
-    QMutexLocker locker(&mutex);
+   // QMutexLocker locker(&mutex);
     currentUserId = 0;
     currentUserType = 0;
     currentUsername.clear();
+
+    //退出登录时清除 Token
+    setSessionToken("");
 }
 
 void NetworkManager::setTimeout(int timeoutMs)
@@ -192,13 +224,13 @@ void NetworkManager::setTimeout(int timeoutMs)
 
 QString NetworkManager::getLastError() const
 {
-    QMutexLocker locker(const_cast<QMutex*>(&mutex));
+    //QMutexLocker locker(const_cast<QMutex*>(&mutex));
     return lastError;
 }
 
 NetworkManager::ErrorType NetworkManager::getLastErrorType() const
 {
-    QMutexLocker locker(const_cast<QMutex*>(&mutex));
+    //QMutexLocker locker(const_cast<QMutex*>(&mutex));
     return lastErrorType;
 }
 
@@ -236,7 +268,7 @@ void NetworkManager::onErrorOccurred(QAbstractSocket::SocketError socketError)
 
 void NetworkManager::onReadyRead()
 {
-    QMutexLocker locker(&mutex);
+   //QMutexLocker locker(&mutex);
     buffer.append(socket->readAll());
 
     // 处理完整的JSON数据包（假设每个包以"\n"结尾）
@@ -273,25 +305,24 @@ void NetworkManager::onReadyRead()
 void NetworkManager::processResponse(const QJsonObject& response)
 {
     QString requestId = response.value("request_id").toString();
-    
-    if (!requestId.isEmpty() && pendingRequests.contains(requestId)) {
-        pendingRequests.remove(requestId);
+
+    qDebug() << "NetworkManager::processResponse, requestId:" << requestId;
+
+    if (!requestId.isEmpty() && pendingCallbacks.contains(requestId)) {
+        auto cb = pendingCallbacks[requestId].callback;
+        pendingCallbacks.remove(requestId);
         if (timeoutTimers.contains(requestId)) {
             timeoutTimers[requestId]->stop();
             timeoutTimers[requestId]->deleteLater();
             timeoutTimers.remove(requestId);
         }
+
+        QString status = response.value("status").toString();
+        bool success = (status == "success");
+        if (cb) cb(success, response);
     }
-    
+
     emit responseReceived(requestId, response);
-    
-    // 检查响应状态
-    QString status = response.value("status").toString();
-    if (status == "fail") {
-        lastErrorType = ServerError;
-        lastError = response.value("message").toString("Server error");
-        emit errorOccurred(lastErrorType, lastError);
-    }
 }
 
 QString NetworkManager::generateRequestId()
@@ -336,7 +367,7 @@ void NetworkManager::onRequestTimeout()
         }
         
         if (!requestId.isEmpty()) {
-            pendingRequests.remove(requestId);
+            pendingCallbacks.remove(requestId);
             timeoutTimers.remove(requestId);
             
             lastErrorType = TimeoutError;
@@ -351,5 +382,17 @@ void NetworkManager::onRequestTimeout()
         }
         
         timer->deleteLater();
+    }
+}
+
+void NetworkManager::cancelRequest(const QString& requestId)
+{
+    if (pendingCallbacks.contains(requestId)) {
+        pendingCallbacks.remove(requestId);
+    }
+    if (timeoutTimers.contains(requestId)) {
+        timeoutTimers[requestId]->stop();
+        timeoutTimers[requestId]->deleteLater();
+        timeoutTimers.remove(requestId);
     }
 }

@@ -154,13 +154,24 @@ void TopicManagementWindow::loadTeachers()
         return;
     }
 
+    if (!currentRequestId.isEmpty()) {
+        NetworkManager::getInstance().cancelRequest(currentRequestId);
+        currentRequestId.clear();
+    }
+
     QJsonObject params;
     params["user_type"] = 2;
+    currentRequestType = "GET_USERS";
     currentRequestId = NetworkManager::getInstance().sendRequestWithUserInfo("GET_USERS", params);
 }
 
 void TopicManagementWindow::loadTopics()
 {
+    if (!currentRequestId.isEmpty()) {
+        NetworkManager::getInstance().cancelRequest(currentRequestId);
+        currentRequestId.clear();
+    }
+
     int status = statusFilterComboBox->currentData().toInt();
     int teacherId = -1;
     
@@ -170,6 +181,7 @@ void TopicManagementWindow::loadTopics()
         // 需要先获取教师ID
         QJsonObject params;
         params["user_id"] = userId;
+        currentRequestType = "GET_USER_INFO";
         currentRequestId = NetworkManager::getInstance().sendRequestWithUserInfo("GET_USER_INFO", params);
         return;
     }
@@ -180,6 +192,7 @@ void TopicManagementWindow::loadTopics()
         params["teacher_id"] = teacherId;
     }
 
+    currentRequestType = "GET_TOPICS";
     currentRequestId = NetworkManager::getInstance().sendRequestWithUserInfo("GET_TOPICS", params);
 }
 
@@ -371,6 +384,11 @@ void TopicManagementWindow::onDeleteTopicClicked()
     if (ret == QMessageBox::Yes) {
         QJsonObject params;
         params["topic_id"] = topicId;
+        if (!currentRequestId.isEmpty()) {
+            NetworkManager::getInstance().cancelRequest(currentRequestId);
+            currentRequestId.clear();
+        }
+        currentRequestType = "DELETE_TOPIC";
         currentRequestId = NetworkManager::getInstance().sendRequestWithUserInfo("DELETE_TOPIC", params);
     }
 }
@@ -408,20 +426,25 @@ void TopicManagementWindow::onTopicResponseReceived(const QString& requestId, co
     if (status == "success") {
         QJsonObject data = response.value("data").toObject();
         
-        if (requestId.startsWith("GET_USERS")) { // 教师列表
+        if (currentRequestType == "GET_USERS") { // 教师列表
             teachers = data.value("users").toArray();
             // 填充教师下拉框
+            teacherComboBox->clear();
+            teacherComboBox->addItem(tr("全部教师"), -1);
             for (const QJsonValue& value : teachers) {
                 QJsonObject teacher = value.toObject();
                 int teacherId = teacher.value("user_id").toInt();
                 QString teacherName = teacher.value("real_name").toString();
                 teacherComboBox->addItem(teacherName, teacherId);
             }
+            currentRequestId.clear();
+            currentRequestType.clear();
             loadTopics(); // 加载课题
-        } else if (requestId.startsWith("GET_TOPICS")) { // 课题列表
+            return;
+        } else if (currentRequestType == "GET_TOPICS") { // 课题列表
             QJsonArray topics = data.value("topics").toArray();
             updateTopicTable(topics);
-        } else if (requestId.startsWith("GET_USER_INFO")) { // 获取用户信息（教师）
+        } else if (currentRequestType == "GET_USER_INFO") { // 获取用户信息（教师）
             QJsonObject userInfo = data.value("user_info").toObject();
             int teacherId = userInfo.value("teacher_id").toInt();
             
@@ -429,28 +452,42 @@ void TopicManagementWindow::onTopicResponseReceived(const QString& requestId, co
             params["status"] = statusFilterComboBox->currentData().toInt();
             params["teacher_id"] = teacherId;
             
+            currentRequestId.clear();
+            currentRequestType.clear();
+            currentRequestType = "GET_TOPICS";
             currentRequestId = NetworkManager::getInstance().sendRequestWithUserInfo("GET_TOPICS", params);
-        } else if (requestId.startsWith("ADD_TOPIC")) { // 添加课题
+            return;
+        } else if (currentRequestType == "ADD_TOPIC") { // 添加课题
             QMessageBox::information(this, tr("成功"), tr("课题添加成功"));
             if (topicDialog) {
                 topicDialog->accept();
             }
+            currentRequestId.clear();
+            currentRequestType.clear();
             loadTopics();
-        } else if (requestId.startsWith("UPDATE_TOPIC")) { // 更新课题
+            return;
+        } else if (currentRequestType == "UPDATE_TOPIC") { // 更新课题
             QMessageBox::information(this, tr("成功"), tr("课题信息更新成功"));
             if (topicDialog) {
                 topicDialog->accept();
             }
+            currentRequestId.clear();
+            currentRequestType.clear();
             loadTopics();
-        } else if (requestId.startsWith("DELETE_TOPIC")) { // 删除课题
+            return;
+        } else if (currentRequestType == "DELETE_TOPIC") { // 删除课题
             QMessageBox::information(this, tr("成功"), tr("课题删除成功"));
+            currentRequestId.clear();
+            currentRequestType.clear();
             loadTopics();
+            return;
         }
     } else {
         QMessageBox::warning(this, tr("失败"), message.isEmpty() ? tr("操作失败，请重试") : message);
     }
 
     currentRequestId.clear();
+    currentRequestType.clear();
 }
 
 void TopicManagementWindow::onAddTopicDialogAccepted()
@@ -485,6 +522,12 @@ void TopicManagementWindow::onAddTopicDialogAccepted()
     topicInfo["max_students"] = maxStudents;
     topicInfo["status"] = status;
 
+    if (!currentRequestId.isEmpty()) {
+        NetworkManager::getInstance().cancelRequest(currentRequestId);
+        currentRequestId.clear();
+    }
+
+    currentRequestType = "ADD_TOPIC";
     currentRequestId = NetworkManager::getInstance().sendRequestWithUserInfo("ADD_TOPIC", topicInfo);
 }
 
@@ -531,5 +574,11 @@ void TopicManagementWindow::onEditTopicDialogAccepted()
     topicInfo["max_students"] = maxStudents;
     topicInfo["status"] = status;
 
+    if (!currentRequestId.isEmpty()) {
+        NetworkManager::getInstance().cancelRequest(currentRequestId);
+        currentRequestId.clear();
+    }
+
+    currentRequestType = "UPDATE_TOPIC";
     currentRequestId = NetworkManager::getInstance().sendRequestWithUserInfo("UPDATE_TOPIC", topicInfo);
 }

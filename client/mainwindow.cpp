@@ -27,12 +27,35 @@ MainWindow::MainWindow(int userId, int userType, const QString& username, const 
       username(username),
       realName(realName)
 {
+    //qDebug() << "MainWindow constructor: start";
     ui->setupUi(this);
+    //qDebug() << "MainWindow: ui setup done";
     initUI();
+   // qDebug() << "MainWindow: initUI done";
     initMenu();
+   // qDebug() << "MainWindow: initMenu done";
     initStatusBar();
+    //qDebug() << "MainWindow: initStatusBar done";
     initConnections();
+    //qDebug() << "MainWindow: initConnections done";
     loadUserInterface();
+    //qDebug() << "MainWindow: loadUserInterface done";
+
+    // //======================测试1===========
+    // ui->setupUi(this);
+    // setWindowTitle(tr("Test"));
+    // // initUI();
+    // // initMenu();
+    // // initStatusBar();
+    // // initConnections();
+    // // loadUserInterface();
+    // qDebug() << "MainWindow minimal done";
+    //======================测试2===========
+    // qDebug() << "MainWindow constructor: start";
+    // ui->setupUi(this);
+    // setWindowTitle(tr("测试窗口 - %1").arg(realName));
+    // resize(800, 600);
+    // qDebug() << "MainWindow constructor: end";
 }
 
 MainWindow::~MainWindow()

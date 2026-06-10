@@ -11,6 +11,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QTextEdit>
+#include <QGroupBox>
 
 class UserManagementWindow : public QWidget
 {
@@ -46,6 +47,7 @@ private:
     QPushButton* refreshButton;
 
     QString currentRequestId;
+    QString currentRequestType;  // 新增：保存当前请求的类型
     QDialog* userDialog;
     QLineEdit* usernameLineEdit;
     QLineEdit* passwordLineEdit;
@@ -54,6 +56,7 @@ private:
     QLineEdit* phoneLineEdit;
     QComboBox* userTypeComboBox;
     QComboBox* statusComboBox;
+    QGroupBox* extendGroup;
     
     // 教师和学生小组扩展字段
     QLineEdit* departmentLineEdit;

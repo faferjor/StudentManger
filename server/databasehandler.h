@@ -57,6 +57,14 @@ public:
     // 统计信息
     QJsonObject getStatistics();
 
+    QJsonObject getTeacherInfoByUserId(int userId);
+    QJsonObject getStudentGroupInfoByUserId(int userId);
+
+    bool hasDependentData(int userId);
+    bool hasPendingApplications(int topicId);
+
+    QString getLastError() const { return lastError; }
+
 private:
     explicit DatabaseHandler(QObject *parent = nullptr);
     static DatabaseHandler* instance;

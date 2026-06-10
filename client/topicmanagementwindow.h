@@ -48,6 +48,7 @@ private:
     QPushButton* refreshButton;
 
     QString currentRequestId;
+    QString currentRequestType;
     QDialog* topicDialog;
     QLineEdit* topicNameLineEdit;
     QComboBox* topicTeacherComboBox;

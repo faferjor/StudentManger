@@ -30,6 +30,7 @@ set(HEADERS
 qt_add_executable(StudentTopicSystemServer
     ${SOURCES}
     ${HEADERS}
+    clienthandler.h clienthandler.cpp
 )
 
 # 链接Qt库

@@ -121,13 +121,24 @@ void TopicBrowsingWindow::initConnections()
 
 void TopicBrowsingWindow::loadTeachers()
 {
+    if (!currentRequestId.isEmpty()) {
+        NetworkManager::getInstance().cancelRequest(currentRequestId);
+        currentRequestId.clear();
+    }
+
     QJsonObject params;
     params["user_type"] = 2;
+    currentRequestType = "GET_USERS";
     currentRequestId = NetworkManager::getInstance().sendRequestWithUserInfo("GET_USERS", params);
 }
 
 void TopicBrowsingWindow::loadTopics()
 {
+    if (!currentRequestId.isEmpty()) {
+        NetworkManager::getInstance().cancelRequest(currentRequestId);
+        currentRequestId.clear();
+    }
+
     int status = statusFilterComboBox->currentData().toInt();
     int teacherId = teacherComboBox->currentData().toInt();
 
@@ -139,14 +150,21 @@ void TopicBrowsingWindow::loadTopics()
         params["teacher_id"] = teacherId;
     }
 
+    currentRequestType = "GET_TOPICS";
     currentRequestId = NetworkManager::getInstance().sendRequestWithUserInfo("GET_TOPICS", params);
 }
 
 void TopicBrowsingWindow::loadMyApplications()
 {
+    if (!currentRequestId.isEmpty()) {
+        NetworkManager::getInstance().cancelRequest(currentRequestId);
+        currentRequestId.clear();
+    }
+
     // 需要先获取小组ID
     QJsonObject params;
     params["user_id"] = userId;
+    currentRequestType = "GET_USER_INFO";
     currentRequestId = NetworkManager::getInstance().sendRequestWithUserInfo("GET_USER_INFO", params);
 }
 
@@ -427,60 +445,67 @@ void TopicBrowsingWindow::onTeacherFilterChanged(int index)
 
 void TopicBrowsingWindow::onTopicResponseReceived(const QString& requestId, const QJsonObject& response)
 {
-    if (requestId != currentRequestId) {
-        return;
-    }
+    if (requestId != currentRequestId) return;
 
     QString status = response.value("status").toString();
     QString message = response.value("message").toString();
 
     if (status == "success") {
         QJsonObject data = response.value("data").toObject();
-        
-        if (requestId.startsWith("GET_USERS")) { // 教师列表
+
+        if (currentRequestType == "GET_USERS") {
             QJsonArray teachers = data.value("users").toArray();
+            teacherComboBox->clear();
+            teacherComboBox->addItem(tr("全部教师"), -1);
             for (const QJsonValue& value : teachers) {
                 QJsonObject teacher = value.toObject();
-                int teacherId = teacher.value("user_id").toInt();
-                QString teacherName = teacher.value("real_name").toString();
-                teacherComboBox->addItem(teacherName, teacherId);
+                int tid = teacher.value("user_id").toInt();
+                QString tname = teacher.value("real_name").toString();
+                teacherComboBox->addItem(tname, tid);
             }
-            loadTopics(); // 加载课题
-        } else if (requestId.startsWith("GET_TOPICS")) { // 课题列表
+            currentRequestId.clear();
+            currentRequestType.clear();
+            loadTopics();
+            return;
+        } else if (currentRequestType == "GET_TOPICS") {
             QJsonArray topics = data.value("topics").toArray();
             updateTopicTable(topics);
-        } else if (requestId.startsWith("GET_USER_INFO")) { // 用户信息
+        } else if (currentRequestType == "GET_USER_INFO") {
             QJsonObject userInfo = data.value("user_info").toObject();
             groupId = userInfo.value("group_id").toInt();
-            
-            // 获取我的申请
             QJsonObject params;
             params["group_id"] = groupId;
+            currentRequestId.clear();
+            currentRequestType.clear();
+            currentRequestType = "GET_APPLICATIONS";
             currentRequestId = NetworkManager::getInstance().sendRequestWithUserInfo("GET_APPLICATIONS", params);
-        } else if (requestId.startsWith("GET_APPLICATIONS")) { // 我的申请
+            return;
+        } else if (currentRequestType == "GET_APPLICATIONS") {
             myApplications = data.value("applications").toArray();
             updateAppliedTopics();
-            loadTopics(); // 加载课题
-        } else if (requestId.startsWith("ADD_APPLICATION")) { // 添加申请
+            currentRequestId.clear();
+            currentRequestType.clear();
+            loadTopics();
+            return;
+        } else if (currentRequestType == "ADD_APPLICATION") {
             QMessageBox::information(this, tr("成功"), tr("课题申请提交成功，等待教师审核"));
-            if (applyDialog) {
-                applyDialog->accept();
-            }
-            loadMyApplications(); // 重新加载我的申请
+            if (applyDialog) applyDialog->accept();
+            currentRequestId.clear();
+            currentRequestType.clear();
+            loadMyApplications();
+            return;
         }
     } else {
         QMessageBox::warning(this, tr("失败"), message.isEmpty() ? tr("操作失败，请重试") : message);
     }
 
     currentRequestId.clear();
+    currentRequestType.clear();
 }
-
 void TopicBrowsingWindow::onApplyDialogAccepted()
 {
     QModelIndexList selected = topicTable->selectionModel()->selectedRows();
-    if (selected.isEmpty()) {
-        return;
-    }
+    if (selected.isEmpty()) return;
 
     int row = selected.first().row();
     QTableWidgetItem* idItem = topicTable->item(row, 0);
@@ -492,9 +517,12 @@ void TopicBrowsingWindow::onApplyDialogAccepted()
     QJsonObject applicationInfo;
     applicationInfo["group_id"] = groupId;
     applicationInfo["topic_id"] = topicId;
-    if (!reason.isEmpty()) {
-        applicationInfo["reason"] = reason;
-    }
+    if (!reason.isEmpty()) applicationInfo["reason"] = reason;
 
+    if (!currentRequestId.isEmpty()) {
+        NetworkManager::getInstance().cancelRequest(currentRequestId);
+        currentRequestId.clear();
+    }
+    currentRequestType = "ADD_APPLICATION";
     currentRequestId = NetworkManager::getInstance().sendRequestWithUserInfo("ADD_APPLICATION", applicationInfo);
 }

@@ -22,6 +22,7 @@ ApplicationReviewWindow::ApplicationReviewWindow(int userType, int userId, QWidg
         // 需要先获取教师ID
         QJsonObject params;
         params["user_id"] = userId;
+        currentRequestType = "GET_USER_INFO";
         currentRequestId = NetworkManager::getInstance().sendRequestWithUserInfo("GET_USER_INFO", params);
     } else { // 管理员
         loadTopics();
@@ -160,13 +161,24 @@ void ApplicationReviewWindow::initConnections()
 
 void ApplicationReviewWindow::loadTopics()
 {
+    if (!currentRequestId.isEmpty()) {
+        NetworkManager::getInstance().cancelRequest(currentRequestId);
+        currentRequestId.clear();
+    }
+
     QJsonObject params;
     params["status"] = 1;
+    currentRequestType = "GET_TOPICS";
     currentRequestId = NetworkManager::getInstance().sendRequestWithUserInfo("GET_TOPICS", params);
 }
 
 void ApplicationReviewWindow::loadApplications()
 {
+    if (!currentRequestId.isEmpty()) {
+        NetworkManager::getInstance().cancelRequest(currentRequestId);
+        currentRequestId.clear();
+    }
+
     int status = statusFilterComboBox->currentData().toInt();
     int topicId = -1;
     int groupId = -1;
@@ -190,6 +202,7 @@ void ApplicationReviewWindow::loadApplications()
         params["group_id"] = groupId;
     }
 
+    currentRequestType = "GET_APPLICATIONS";
     currentRequestId = NetworkManager::getInstance().sendRequestWithUserInfo("GET_APPLICATIONS", params);
 }
 
@@ -444,6 +457,11 @@ void ApplicationReviewWindow::showRejectDialog(const QJsonObject& appInfo)
 
 void ApplicationReviewWindow::updateApplicationStatus(int applicationId, int status, const QString& rejectReason)
 {
+    if (!currentRequestId.isEmpty()) {
+        NetworkManager::getInstance().cancelRequest(currentRequestId);
+        currentRequestId.clear();
+    }
+
     QJsonObject params;
     params["application_id"] = applicationId;
     params["status"] = status;
@@ -452,8 +470,8 @@ void ApplicationReviewWindow::updateApplicationStatus(int applicationId, int sta
         params["reject_reason"] = rejectReason;
     }
 
-    QString command = "UPDATE_APPLICATION_STATUS";
-    currentRequestId = NetworkManager::getInstance().sendRequestWithUserInfo(command, params);
+    currentRequestType = "UPDATE_APPLICATION_STATUS";
+    currentRequestId = NetworkManager::getInstance().sendRequestWithUserInfo("UPDATE_APPLICATION_STATUS", params);
 }
 
 void ApplicationReviewWindow::onApproveClicked()
@@ -537,29 +555,43 @@ void ApplicationReviewWindow::onResponseReceived(const QString& requestId, const
     if (status == "success") {
         QJsonObject data = response.value("data").toObject();
         
-        if (requestId.startsWith("GET_USER_INFO")) { // 用户信息
+        if (currentRequestType == "GET_USER_INFO") { // 用户信息
             QJsonObject userInfo = data.value("user_info").toObject();
             teacherId = userInfo.value("teacher_id").toInt();
+            currentRequestId.clear();
+            currentRequestType.clear();
             loadApplications(); // 加载申请
-        } else if (requestId.startsWith("GET_TOPICS")) { // 课题列表
+            return;
+        } else if (currentRequestType == "GET_TOPICS") { // 课题列表
             QJsonArray topics = data.value("topics").toArray();
+
+            topicFilterComboBox->clear();
+            topicFilterComboBox->addItem(tr("全部课题"), -1);
+
             for (const QJsonValue& value : topics) {
                 QJsonObject topic = value.toObject();
                 int topicId = topic.value("topic_id").toInt();
                 QString topicName = topic.value("topic_name").toString();
                 topicFilterComboBox->addItem(topicName, topicId);
             }
+            currentRequestId.clear();
+            currentRequestType.clear();
             loadApplications(); // 加载申请
-        } else if (requestId.startsWith("GET_APPLICATIONS")) { // 申请列表
+            return;
+        } else if (currentRequestType == "GET_APPLICATIONS") { // 申请列表
             QJsonArray applications = data.value("applications").toArray();
             updateApplicationTable(applications);
-        } else if (requestId.startsWith("UPDATE_APPLICATION_STATUS")) { // 更新审核状态
+        } else if (currentRequestType == "UPDATE_APPLICATION_STATUS") { // 更新审核状态
             QMessageBox::information(this, tr("成功"), tr("审核操作完成"));
+            currentRequestId.clear();
+            currentRequestType.clear();
             loadApplications(); // 重新加载申请
+            return;
         }
     } else {
         QMessageBox::warning(this, tr("失败"), message.isEmpty() ? tr("操作失败，请重试") : message);
     }
 
     currentRequestId.clear();
+    currentRequestType.clear();
 }

@@ -89,6 +89,9 @@ void LoginWindow::onExitButtonClicked()
 
 void LoginWindow::onConnectionStateChanged(NetworkManager::ConnectionState state)
 {
+    //如果状态不是 Connected，客户端不会发送请求。
+    qDebug() << "Connection state changed:" << state;
+
     switch (state) {
     case NetworkManager::Connected:
         showStatus(tr("服务器连接成功，可以登录"), false);
@@ -104,34 +107,65 @@ void LoginWindow::onConnectionStateChanged(NetworkManager::ConnectionState state
 
 void LoginWindow::onResponseReceived(const QString& requestId, const QJsonObject& response)
 {
+    //测试客户端链接
+    qDebug() << "=== LoginWindow::onResponseReceived called, requestId:" << requestId;
+    qDebug() << "Response status:" << response.value("status").toString();
+
     if (requestId != currentRequestId) {
         return;
     }
 
     stopLoginRequest();
-
+    //最小化测试=============
+    // QString status = response.value("status").toString();
+    // if (status == "success") {
+    //     qDebug() << "Login success, emitting signal...";
+    //     // 发射一个简单的信号，不传递任何用户信息
+    //     emit loginSuccess(1, 1, "test", "test");
+    //     qDebug() << "After emit";
+    // }
+//==============
     QString status = response.value("status").toString();
     if (status == "success") {
         QJsonObject data = response.value("data").toObject();
         QJsonObject userInfo = data.value("user_info").toObject();
         
+        // 新增，提取 Token 并保存
+        QString token = data.value("token").toString();
+        if (!token.isEmpty()) {
+            networkManager.setSessionToken(token);        // 保存 token
+        }
+
         int userId = userInfo.value("user_id").toInt();
         int userType = userInfo.value("user_type").toInt();
         QString username = userInfo.value("username").toString();
         QString realName = userInfo.value("real_name").toString();
         
         // 保存用户信息到网络管理器
+        //====
         networkManager.setCurrentUser(userId, userType, username);
         
         showStatus(tr("登录成功！欢迎回来，%1").arg(realName), false);
         
         // 延迟关闭登录窗口，让用户看到成功提示
+        //======================
         QTimer::singleShot(1000, this, [=]() {
+            // 断开所有 NetworkManager 的连接
+            disconnect(&networkManager, &NetworkManager::connectionStateChanged, this, nullptr);
+            disconnect(&networkManager, &NetworkManager::responseReceived, this, nullptr);
+            disconnect(&networkManager, &NetworkManager::errorOccurred, this, nullptr);
+            
             emit loginSuccess(userId, userType, username, realName);
             accept();
         });
+        //=====测试
+        // qDebug() << "About to emit loginSuccess";
+        // emit loginSuccess(userId, userType, username, realName);
+        // qDebug() << "After emit loginSuccess";
+        // accept();
         
         loginAttempts = 0;
+        currentRequestId.clear();
     } else {
         QString message = response.value("message").toString(tr("登录失败"));
         showStatus(message, true);
@@ -147,6 +181,7 @@ void LoginWindow::onResponseReceived(const QString& requestId, const QJsonObject
                 clearStatus();
             });
         }
+        currentRequestId.clear();
     }
 }
 
@@ -227,8 +262,11 @@ void LoginWindow::startLoginRequest()
     data["username"] = username;
     data["password"] = password;
 
+    //确认登录按钮点击后真正发送了请求
+    qDebug() << "Preparing to send login request...";
     currentRequestId = networkManager.sendRequest("USER_LOGIN", data);
-    
+    qDebug() << "Request sent, ID:" << currentRequestId;
+
     if (currentRequestId.isEmpty()) {
         showStatus(tr("请求发送失败，请检查网络连接"), true);
     } else {

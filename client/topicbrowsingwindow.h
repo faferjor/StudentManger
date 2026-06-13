@@ -45,6 +45,7 @@ private:
     QPushButton* refreshButton;
 
     QString currentRequestId;
+    QString currentRequestType;
     QDialog* applyDialog;
     QTextEdit* reasonTextEdit;
 

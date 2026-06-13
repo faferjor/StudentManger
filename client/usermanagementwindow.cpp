@@ -121,15 +121,25 @@ void UserManagementWindow::initConnections()
 
 void UserManagementWindow::loadUsers()
 {
+    if (!currentRequestId.isEmpty()) {
+        NetworkManager::getInstance().cancelRequest(currentRequestId);
+        currentRequestId.clear();
+    }
+
     int userType = userTypeFilterComboBox->currentData().toInt();
     QJsonObject params;
     params["user_type"] = userType;
+    currentRequestType = "GET_USERS";  // 保存请求类型
     currentRequestId = NetworkManager::getInstance().sendRequestWithUserInfo("GET_USERS", params);
 }
 
 void UserManagementWindow::updateUserTable(const QJsonArray& users)
 {
+    qDebug() << "=== updateUserTable called, users size:" << users.size();
+    qDebug() << "userTable is null:" << (userTable == nullptr);
+    
     userTable->setRowCount(0);
+    qDebug() << "Row count set to 0";
 
     for (const QJsonValue& value : users) {
         QJsonObject user = value.toObject();
@@ -164,10 +174,14 @@ void UserManagementWindow::updateUserTable(const QJsonArray& users)
         userTable->setItem(row, 6, new QTableWidgetItem(statusStr));
         userTable->setItem(row, 7, new QTableWidgetItem(createTime));
 
+        qDebug() << "Added row" << row << "for user:" << username;
+
         // 存储用户数据到行的隐藏数据
         QTableWidgetItem* idItem = userTable->item(row, 0);
         idItem->setData(Qt::UserRole, QVariant::fromValue(user));
     }
+    
+    qDebug() << "=== updateUserTable finished, total rows:" << userTable->rowCount();
 }
 
 void UserManagementWindow::showUserDialog(const QJsonObject& userInfo)
@@ -248,7 +262,7 @@ void UserManagementWindow::showUserDialog(const QJsonObject& userInfo)
     dialogLayout->addWidget(basicGroup);
 
     // 扩展信息表单
-    QGroupBox* extendGroup = new QGroupBox(userDialog);
+    extendGroup = new QGroupBox(userDialog);
     QFormLayout* extendLayout = new QFormLayout(extendGroup);
     extendLayout->setSpacing(10);
 
@@ -351,12 +365,80 @@ void UserManagementWindow::showUserDialog(const QJsonObject& userInfo)
 
     dialogLayout->addLayout(buttonLayout);
 
-    // 连接用户类型变化信号
+    // 连接用户类型变化信号 - 动态更新扩展信息区域
     if (!isEdit) {
         connect(userTypeComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=](int index) {
+            Q_UNUSED(index);
+            // 先移除旧的扩展组
+            if (dialogLayout->indexOf(extendGroup) != -1) {
+                dialogLayout->removeWidget(extendGroup);
+                extendGroup->deleteLater();
+                extendGroup = nullptr;
+            }
+            
+            // 获取新的用户类型
             int newUserType = userTypeComboBox->currentData().toInt();
-            userDialog->close();
-            showUserDialog();
+            
+            // 重新创建扩展信息表单
+            extendGroup = new QGroupBox(userDialog);
+            QFormLayout* extendLayout = new QFormLayout(extendGroup);
+            extendLayout->setSpacing(10);
+            
+            if (newUserType == 2) { // 教师
+                extendGroup->setTitle(tr("教师信息"));
+                
+                departmentLineEdit = new QLineEdit(userDialog);
+                departmentLineEdit->setPlaceholderText(tr("请输入所属院系"));
+                
+                titleLineEdit = new QLineEdit(userDialog);
+                titleLineEdit->setPlaceholderText(tr("请输入职称"));
+                
+                researchAreaTextEdit = new QTextEdit(userDialog);
+                researchAreaTextEdit->setPlaceholderText(tr("请输入研究方向"));
+                researchAreaTextEdit->setMaximumHeight(80);
+                
+                extendLayout->addRow(tr("所属院系:"), departmentLineEdit);
+                extendLayout->addRow(tr("职称:"), titleLineEdit);
+                extendLayout->addRow(tr("研究方向:"), researchAreaTextEdit);
+            } else if (newUserType == 3) { // 学生小组
+                extendGroup->setTitle(tr("小组信息"));
+                
+                leaderNameLineEdit = new QLineEdit(userDialog);
+                leaderNameLineEdit->setPlaceholderText(tr("请输入组长姓名"));
+                
+                memberCountLineEdit = new QLineEdit(userDialog);
+                memberCountLineEdit->setPlaceholderText(tr("请输入成员人数"));
+                memberCountLineEdit->setValidator(new QIntValidator(1, 20, this));
+                memberCountLineEdit->setText("1");
+                
+                membersTextEdit = new QTextEdit(userDialog);
+                membersTextEdit->setPlaceholderText(tr("请输入成员列表（每行一个）"));
+                membersTextEdit->setMaximumHeight(80);
+                
+                majorLineEdit = new QLineEdit(userDialog);
+                majorLineEdit->setPlaceholderText(tr("请输入专业"));
+                
+                gradeLineEdit = new QLineEdit(userDialog);
+                gradeLineEdit->setPlaceholderText(tr("请输入年级"));
+                
+                classNameLineEdit = new QLineEdit(userDialog);
+                classNameLineEdit->setPlaceholderText(tr("请输入班级"));
+                
+                extendLayout->addRow(tr("组长姓名:"), leaderNameLineEdit);
+                extendLayout->addRow(tr("成员人数:"), memberCountLineEdit);
+                extendLayout->addRow(tr("成员列表:"), membersTextEdit);
+                extendLayout->addRow(tr("专业:"), majorLineEdit);
+                extendLayout->addRow(tr("年级:"), gradeLineEdit);
+                extendLayout->addRow(tr("班级:"), classNameLineEdit);
+            }
+            
+            // 添加新的扩展组到布局中（在按钮组之前）
+            if (newUserType == 2 || newUserType == 3) {
+                dialogLayout->insertWidget(dialogLayout->count() - 1, extendGroup);
+            }
+            
+            // 调整对话框大小
+            userDialog->adjustSize();
         });
     }
 
@@ -400,6 +482,11 @@ void UserManagementWindow::onDeleteUserClicked()
     if (ret == QMessageBox::Yes) {
         QJsonObject params;
         params["user_id"] = userId;
+        if (!currentRequestId.isEmpty()) {
+            NetworkManager::getInstance().cancelRequest(currentRequestId);
+            currentRequestId.clear();
+        }
+        currentRequestType = "DELETE_USER";  // 保存请求类型
         currentRequestId = NetworkManager::getInstance().sendRequestWithUserInfo("DELETE_USER", params);
     }
 }
@@ -428,41 +515,73 @@ void UserManagementWindow::onUserTypeFilterChanged(int index)
 
 void UserManagementWindow::onUserResponseReceived(const QString& requestId, const QJsonObject& response)
 {
+    qDebug() << "=== onUserResponseReceived called ===";
+    qDebug() << "Received requestId:" << requestId;
+    qDebug() << "Current requestId:" << currentRequestId;
+    qDebug() << "Current requestType:" << currentRequestType;
+    qDebug() << "Response:" << QJsonDocument(response).toJson(QJsonDocument::Compact);
+
     if (requestId != currentRequestId) {
+        qDebug() << "RequestId doesn't match, ignoring";
         return;
     }
 
     QString status = response.value("status").toString();
-    QString message = response.value("message").toString();
-
+    qDebug() << "Status:" << status;
+    
     if (status == "success") {
         QJsonObject data = response.value("data").toObject();
+        qDebug() << "Data keys:" << data.keys();
         
-        if (requestId.startsWith("GET_USERS")) {
+        if (currentRequestType == "GET_USERS") {
+            qDebug() << "Processing GET_USERS";
             QJsonArray users = data.value("users").toArray();
+            qDebug() << "Updating user table with" << users.size() << "users";
             updateUserTable(users);
-            QMessageBox::information(this, tr("成功"), tr("用户数据加载成功"));
-        } else if (requestId.startsWith("ADD_USER")) {
-            QMessageBox::information(this, tr("成功"), tr("用户添加成功"));
+            // 移除这个弹窗，避免干扰
+            // QMessageBox::information(this, tr("成功"), tr("用户数据加载成功"));
+        } else if (currentRequestType == "ADD_USER") {
+            qDebug() << "Processing ADD_USER";
+            // 移除弹窗，直接关闭对话框并刷新
             if (userDialog) {
                 userDialog->accept();
             }
+            // 先清空，再刷新
+            currentRequestId.clear();
+            currentRequestType.clear();
             loadUsers();
-        } else if (requestId.startsWith("UPDATE_USER")) {
-            QMessageBox::information(this, tr("成功"), tr("用户信息更新成功"));
+            return;  // 直接返回，避免后面再次清空
+        } else if (currentRequestType == "UPDATE_USER") {
+            qDebug() << "Processing UPDATE_USER";
+            // 移除弹窗，直接关闭对话框并刷新
             if (userDialog) {
                 userDialog->accept();
             }
+            // 先清空，再刷新
+            currentRequestId.clear();
+            currentRequestType.clear();
             loadUsers();
-        } else if (requestId.startsWith("DELETE_USER")) {
-            QMessageBox::information(this, tr("成功"), tr("用户删除成功"));
+            return;  // 直接返回，避免后面再次清空
+        } else if (currentRequestType == "DELETE_USER") {
+            qDebug() << "Processing DELETE_USER";
+            // 先清空，再刷新
+            currentRequestId.clear();
+            currentRequestType.clear();
+            // 移除弹窗，直接刷新
             loadUsers();
+            return;  // 直接返回，避免后面再次清空
+        } else {
+            qDebug() << "Unknown request type:" << currentRequestType;
         }
     } else {
+        qDebug() << "Request failed";
+        QString message = response.value("message").toString();
         QMessageBox::warning(this, tr("失败"), message.isEmpty() ? tr("操作失败，请重试") : message);
     }
 
+    qDebug() << "Clearing currentRequestId and currentRequestType";
     currentRequestId.clear();
+    currentRequestType.clear();
 }
 
 void UserManagementWindow::onAddUserDialogAccepted()
@@ -517,6 +636,12 @@ void UserManagementWindow::onAddUserDialogAccepted()
         userInfo["class_name"] = classNameLineEdit->text().trimmed();
     }
 
+    if (!currentRequestId.isEmpty()) {
+        NetworkManager::getInstance().cancelRequest(currentRequestId);
+        currentRequestId.clear();
+    }
+
+    currentRequestType = "ADD_USER";  // 保存请求类型
     currentRequestId = NetworkManager::getInstance().sendRequestWithUserInfo("ADD_USER", userInfo);
 }
 
@@ -577,5 +702,11 @@ void UserManagementWindow::onEditUserDialogAccepted()
         userInfo["user_id"] = userId;
     }
 
+    if (!currentRequestId.isEmpty()) {
+        NetworkManager::getInstance().cancelRequest(currentRequestId);
+        currentRequestId.clear();
+    }
+
+    currentRequestType = "UPDATE_USER";  // 保存请求类型
     currentRequestId = NetworkManager::getInstance().sendRequestWithUserInfo("UPDATE_USER", userInfo);
 }

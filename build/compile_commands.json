@@ -1,0 +1,26 @@
+[
+{
+  "directory": "E:/code/Git/StudentManger/build",
+  "command": "E:\\QT6.10\\Tools\\mingw1310_64\\bin\\g++.exe -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_NETWORK_LIB -DQT_SQL_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64 @CMakeFiles/StudentTopicSystemServer.dir/includes_CXX.rsp -g -std=gnu++17 -Wall -Wextra -Wpedantic -o CMakeFiles\\StudentTopicSystemServer.dir\\StudentTopicSystemServer_autogen\\mocs_compilation.cpp.obj -c E:\\code\\Git\\StudentManger\\build\\StudentTopicSystemServer_autogen\\mocs_compilation.cpp",
+  "file": "E:/code/Git/StudentManger/build/StudentTopicSystemServer_autogen/mocs_compilation.cpp",
+  "output": "CMakeFiles/StudentTopicSystemServer.dir/StudentTopicSystemServer_autogen/mocs_compilation.cpp.obj"
+},
+{
+  "directory": "E:/code/Git/StudentManger/build",
+  "command": "E:\\QT6.10\\Tools\\mingw1310_64\\bin\\g++.exe -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_NETWORK_LIB -DQT_SQL_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64 @CMakeFiles/StudentTopicSystemServer.dir/includes_CXX.rsp -g -std=gnu++17 -Wall -Wextra -Wpedantic -o CMakeFiles\\StudentTopicSystemServer.dir\\main.cpp.obj -c E:\\code\\Git\\StudentManger\\server\\main.cpp",
+  "file": "E:/code/Git/StudentManger/server/main.cpp",
+  "output": "CMakeFiles/StudentTopicSystemServer.dir/main.cpp.obj"
+},
+{
+  "directory": "E:/code/Git/StudentManger/build",
+  "command": "E:\\QT6.10\\Tools\\mingw1310_64\\bin\\g++.exe -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_NETWORK_LIB -DQT_SQL_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64 @CMakeFiles/StudentTopicSystemServer.dir/includes_CXX.rsp -g -std=gnu++17 -Wall -Wextra -Wpedantic -o CMakeFiles\\StudentTopicSystemServer.dir\\databasehandler.cpp.obj -c E:\\code\\Git\\StudentManger\\server\\databasehandler.cpp",
+  "file": "E:/code/Git/StudentManger/server/databasehandler.cpp",
+  "output": "CMakeFiles/StudentTopicSystemServer.dir/databasehandler.cpp.obj"
+},
+{
+  "directory": "E:/code/Git/StudentManger/build",
+  "command": "E:\\QT6.10\\Tools\\mingw1310_64\\bin\\g++.exe -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_NETWORK_LIB -DQT_SQL_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64 @CMakeFiles/StudentTopicSystemServer.dir/includes_CXX.rsp -g -std=gnu++17 -Wall -Wextra -Wpedantic -o CMakeFiles\\StudentTopicSystemServer.dir\\clienthandler.cpp.obj -c E:\\code\\Git\\StudentManger\\server\\clienthandler.cpp",
+  "file": "E:/code/Git/StudentManger/server/clienthandler.cpp",
+  "output": "CMakeFiles/StudentTopicSystemServer.dir/clienthandler.cpp.obj"
+}
+]

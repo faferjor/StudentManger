@@ -30,6 +30,11 @@ public:
         ParseError
     };
 
+    void setSessionToken(const QString& token);
+    QString getSessionToken() const;
+
+    void cancelRequest(const QString& requestId);
+
     static NetworkManager& getInstance()
     {
         static NetworkManager instance;
@@ -50,8 +55,8 @@ public:
     ConnectionState getConnectionState() const;
 
     // 发送请求
-    QString sendRequest(const QString& command, const QJsonObject& data = QJsonObject());
-
+    QString sendRequest(const QString& command, const QJsonObject& data = QJsonObject(),
+                        std::function<void(bool, const QJsonObject&)> callback = nullptr);
     // 发送请求（带用户信息）
     QString sendRequestWithUserInfo(const QString& command, const QJsonObject& data = QJsonObject());
 
@@ -85,6 +90,8 @@ private slots:
     void onRequestTimeout();
 
 private:
+    QString sessionToken;
+
     NetworkManager(QObject *parent = nullptr);
     ~NetworkManager();
 
@@ -97,7 +104,7 @@ private:
     QTcpSocket* socket;
     ConnectionState connectionState;
     QByteArray buffer;
-    QMutex mutex;
+    //QMutex mutex;
     int timeoutMs;
 
     // 用户信息
@@ -106,10 +113,16 @@ private:
     QString currentUsername;
 
     // 请求管理
-    QMap<QString, QDateTime> pendingRequests;
+    struct PendingRequest {
+        QDateTime timestamp;
+        std::function<void(bool, const QJsonObject&)> callback;
+    };
+    QMap<QString, PendingRequest> pendingCallbacks;
+
     QMap<QString, QTimer*> timeoutTimers;
     QString lastError;
     ErrorType lastErrorType;
+
 };
 
 // 请求结果回调类型

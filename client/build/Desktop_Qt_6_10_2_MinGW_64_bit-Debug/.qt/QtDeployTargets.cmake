@@ -1,0 +1,3 @@
+set(__QT_DEPLOY_TARGET_StudentTopicSystemClient_FILE E:/code/Git/StudentManger/client/build/Desktop_Qt_6_10_2_MinGW_64_bit-Debug/StudentTopicSystemClient.exe)
+set(__QT_DEPLOY_TARGET_StudentTopicSystemClient_TYPE EXECUTABLE)
+set(__QT_DEPLOY_TARGET_StudentTopicSystemClient_RUNTIME_DLLS E:/QT6.10/6.10.2/mingw_64/bin/Qt6Network.dll;E:/QT6.10/6.10.2/mingw_64/bin/Qt6Sql.dll;E:/QT6.10/6.10.2/mingw_64/bin/Qt6Charts.dll;E:/QT6.10/6.10.2/mingw_64/bin/Qt6OpenGLWidgets.dll;E:/QT6.10/6.10.2/mingw_64/bin/Qt6Widgets.dll;E:/QT6.10/6.10.2/mingw_64/bin/Qt6OpenGL.dll;E:/QT6.10/6.10.2/mingw_64/bin/Qt6Gui.dll;E:/QT6.10/6.10.2/mingw_64/bin/Qt6Core.dll)

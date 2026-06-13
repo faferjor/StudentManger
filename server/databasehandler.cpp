@@ -70,6 +70,7 @@ bool DatabaseHandler::isConnected() const
 
 QJsonObject DatabaseHandler::validateUser(const QString& username, const QString& password)
 {
+
     QMutexLocker locker(&mutex);
 
     if (!db.isOpen()) {
@@ -91,6 +92,8 @@ QJsonObject DatabaseHandler::validateUser(const QString& username, const QString
         return QJsonObject();
     }
 
+   // qDebug() << "validateUser query:" << queryStr;
+
     if (query.next()) {
         int status = query.value(4).toInt();
         if (status != 1) {
@@ -110,6 +113,8 @@ QJsonObject DatabaseHandler::validateUser(const QString& username, const QString
 
     lastError = "Invalid username or password";
     return QJsonObject();
+
+    //qDebug() << "validateUser query:" << queryStr;
 }
 
 QJsonObject DatabaseHandler::getUserInfo(int userId)
@@ -148,17 +153,18 @@ QJsonObject DatabaseHandler::getUserInfo(int userId)
         // 获取用户详细信息
         int userType = query.value(2).toInt();
         if (userType == 2) { // 教师
-            queryStr = "SELECT department, title, research_area FROM teachers WHERE user_id = ?";
+            queryStr = "SELECT department, title, research_area, teacher_id FROM teachers WHERE user_id = ?";
             query.prepare(queryStr);
             query.addBindValue(userId);
             if (query.exec() && query.next()) {
                 userInfo["department"] = query.value(0).toString();
                 userInfo["title"] = query.value(1).toString();
                 userInfo["research_area"] = query.value(2).toString();
+                userInfo["teacher_id"] = query.value(3).toInt();
             }
         } else if (userType == 3) { // 学生小组
-            queryStr = "SELECT leader_name, member_count, members, major, grade, class_name "
-                      "FROM student_groups WHERE user_id = ?";
+            queryStr = "SELECT leader_name, member_count, members, major, grade, class_name, group_id "
+                       "FROM student_groups WHERE user_id = ?";
             query.prepare(queryStr);
             query.addBindValue(userId);
             if (query.exec() && query.next()) {
@@ -168,6 +174,7 @@ QJsonObject DatabaseHandler::getUserInfo(int userId)
                 userInfo["major"] = query.value(3).toString();
                 userInfo["grade"] = query.value(4).toString();
                 userInfo["class_name"] = query.value(5).toString();
+                userInfo["group_id"] = query.value(6).toInt();
             }
         }
 
@@ -368,9 +375,54 @@ bool DatabaseHandler::deleteUser(int userId)
 
     db.transaction();
 
+    // 首先获取用户类型，确定需要删除哪些相关数据
+    QSqlQuery checkQuery;
+    checkQuery.prepare("SELECT user_type FROM users WHERE user_id = ?");
+    checkQuery.addBindValue(userId);
+    if (!checkQuery.exec()) {
+        lastError = checkQuery.lastError().text();
+        qCritical() << "Check user type failed:" << lastError;
+        db.rollback();
+        return false;
+    }
+
+    int userType = 0;
+    if (checkQuery.next()) {
+        userType = checkQuery.value(0).toInt();
+    } else {
+        lastError = "User not found";
+        db.rollback();
+        return false;
+    }
+
+    // 先删除相关联的表记录（外键约束）
+    if (userType == 2) {
+        // 教师 - 删除 teachers 表中的记录
+        QSqlQuery deleteTeacherQuery;
+        deleteTeacherQuery.prepare("DELETE FROM teachers WHERE user_id = ?");
+        deleteTeacherQuery.addBindValue(userId);
+        if (!deleteTeacherQuery.exec()) {
+            lastError = deleteTeacherQuery.lastError().text();
+            qCritical() << "Delete teacher record failed:" << lastError;
+            db.rollback();
+            return false;
+        }
+    } else if (userType == 3) {
+        // 学生小组 - 删除 student_groups 表中的记录
+        QSqlQuery deleteGroupQuery;
+        deleteGroupQuery.prepare("DELETE FROM student_groups WHERE user_id = ?");
+        deleteGroupQuery.addBindValue(userId);
+        if (!deleteGroupQuery.exec()) {
+            lastError = deleteGroupQuery.lastError().text();
+            qCritical() << "Delete student group record failed:" << lastError;
+            db.rollback();
+            return false;
+        }
+    }
+
+    // 最后删除 users 表中的记录
     QSqlQuery query;
     QString queryStr = "DELETE FROM users WHERE user_id = ?";
-
     query.prepare(queryStr);
     query.addBindValue(userId);
 
@@ -719,34 +771,34 @@ bool DatabaseHandler::updateApplicationStatus(int applicationId, int status, con
 QJsonArray DatabaseHandler::getApplications(int groupId, int topicId, int status)
 {
     QMutexLocker locker(&mutex);
-
     if (!db.isOpen()) {
         lastError = "Database not connected";
         return QJsonArray();
     }
 
     QSqlQuery query;
-    QString queryStr = "SELECT * FROM topic_applications";
-    QStringList conditions;
+    QString queryStr = "SELECT a.*, t.topic_name, u.real_name AS teacher_name, "
+                       "sg.leader_name AS group_name, u2.real_name AS reviewer_name "
+                       "FROM topic_applications a "
+                       "LEFT JOIN topics t ON a.topic_id = t.topic_id "
+                       "LEFT JOIN teachers te ON t.teacher_id = te.teacher_id "
+                       "LEFT JOIN users u ON te.user_id = u.user_id "
+                       "LEFT JOIN student_groups sg ON a.group_id = sg.group_id "
+                       "LEFT JOIN users u2 ON a.reviewer_id = u2.user_id "
+                       "WHERE 1=1";
     QVariantList params;
 
     if (groupId != -1) {
-        conditions << "group_id = ?";
+        queryStr += " AND a.group_id = ?";
         params << groupId;
     }
-
     if (topicId != -1) {
-        conditions << "topic_id = ?";
+        queryStr += " AND a.topic_id = ?";
         params << topicId;
     }
-
     if (status != -1) {
-        conditions << "status = ?";
+        queryStr += " AND a.status = ?";
         params << status;
-    }
-
-    if (!conditions.isEmpty()) {
-        queryStr += " WHERE " + conditions.join(" AND ");
     }
 
     query.prepare(queryStr);
@@ -852,41 +904,190 @@ QJsonObject DatabaseHandler::getStudentGroupInfo(int groupId)
 QJsonObject DatabaseHandler::getStatistics()
 {
     QMutexLocker locker(&mutex);
+    QJsonObject stats;
+    QSqlQuery query;
 
+    // 用户统计（原有）
+    query.exec("SELECT COUNT(*) FROM users WHERE user_type = 1");
+    if (query.next()) stats["admin_count"] = query.value(0).toInt();
+    query.exec("SELECT COUNT(*) FROM users WHERE user_type = 2");
+    if (query.next()) stats["teacher_count"] = query.value(0).toInt();
+    query.exec("SELECT COUNT(*) FROM users WHERE user_type = 3");
+    if (query.next()) stats["student_count"] = query.value(0).toInt();
+
+    // 新增：活跃/禁用用户数
+    query.exec("SELECT COUNT(*) FROM users WHERE status = 1");
+    if (query.next()) stats["active_user_count"] = query.value(0).toInt();
+    query.exec("SELECT COUNT(*) FROM users WHERE status = 0");
+    if (query.next()) stats["inactive_user_count"] = query.value(0).toInt();
+
+    // 课题统计（原有）
+    query.exec("SELECT COUNT(*) FROM topics WHERE status = 1");
+    if (query.next()) stats["active_topic_count"] = query.value(0).toInt();
+    query.exec("SELECT COUNT(*) FROM topics WHERE status = 0");
+    if (query.next()) stats["closed_topic_count"] = query.value(0).toInt();
+
+    // 新增：总课题数、已申请课题数、已完成课题数（通过申请且课题完成？简化处理）
+    query.exec("SELECT COUNT(*) FROM topics");
+    if (query.next()) stats["total_topic_count"] = query.value(0).toInt();
+    query.exec("SELECT COUNT(DISTINCT topic_id) FROM topic_applications");
+    if (query.next()) stats["applied_topic_count"] = query.value(0).toInt();
+    // 已完成课题：申请状态为1且课题状态为0（已关闭），这里简化为申请通过的数量
+    query.exec("SELECT COUNT(*) FROM topic_applications WHERE status = 1");
+    if (query.next()) stats["completed_topic_count"] = query.value(0).toInt();
+
+    // 申请统计（原有，但字段名需调整）
+    query.exec("SELECT COUNT(*) FROM topic_applications");
+    if (query.next()) stats["total_count"] = query.value(0).toInt();
+    query.exec("SELECT COUNT(*) FROM topic_applications WHERE status = 0");
+    if (query.next()) stats["pending_count"] = query.value(0).toInt();
+    query.exec("SELECT COUNT(*) FROM topic_applications WHERE status = 1");
+    if (query.next()) stats["approved_count"] = query.value(0).toInt();
+    query.exec("SELECT COUNT(*) FROM topic_applications WHERE status = 2");
+    if (query.next()) stats["rejected_count"] = query.value(0).toInt();
+
+    return stats;
+}
+
+QJsonObject DatabaseHandler::getApplication(int applicationId)
+{
+    QMutexLocker locker(&mutex);
     if (!db.isOpen()) {
         lastError = "Database not connected";
         return QJsonObject();
     }
 
-    QJsonObject stats;
     QSqlQuery query;
+    query.prepare("SELECT * FROM topic_applications WHERE application_id = ?");
+    query.addBindValue(applicationId);
 
-    // 用户统计
-    query.exec("SELECT COUNT(*) FROM users WHERE user_type = 1");
-    if (query.next()) stats["admin_count"] = query.value(0).toInt();
+    if (!query.exec()) {
+        lastError = query.lastError().text();
+        qCritical() << "Get application failed:" << lastError;
+        return QJsonObject();
+    }
 
-    query.exec("SELECT COUNT(*) FROM users WHERE user_type = 2");
-    if (query.next()) stats["teacher_count"] = query.value(0).toInt();
+    if (query.next()) {
+        return queryToJsonObject(query);
+    }
 
-    query.exec("SELECT COUNT(*) FROM users WHERE user_type = 3");
-    if (query.next()) stats["student_count"] = query.value(0).toInt();
+    lastError = "Application not found";
+    return QJsonObject();
+}
 
-    // 课题统计
-    query.exec("SELECT COUNT(*) FROM topics WHERE status = 1");
-    if (query.next()) stats["active_topic_count"] = query.value(0).toInt();
+QJsonObject DatabaseHandler::getTeacherInfoByUserId(int userId)
+{
+    QMutexLocker locker(&mutex);
+    if (!db.isOpen()) {
+        lastError = "Database not connected";
+        return QJsonObject();
+    }
 
-    query.exec("SELECT COUNT(*) FROM topics WHERE status = 0");
-    if (query.next()) stats["inactive_topic_count"] = query.value(0).toInt();
+    QSqlQuery query;
+    query.prepare("SELECT teacher_id FROM teachers WHERE user_id = ?");
+    query.addBindValue(userId);
 
-    // 申请统计
-    query.exec("SELECT COUNT(*) FROM topic_applications WHERE status = 0");
-    if (query.next()) stats["pending_application_count"] = query.value(0).toInt();
+    if (!query.exec()) {
+        lastError = query.lastError().text();
+        qCritical() << "Get teacher info by user_id failed:" << lastError;
+        return QJsonObject();
+    }
 
-    query.exec("SELECT COUNT(*) FROM topic_applications WHERE status = 1");
-    if (query.next()) stats["approved_application_count"] = query.value(0).toInt();
+    if (query.next()) {
+        QJsonObject obj;
+        obj["teacher_id"] = query.value(0).toInt();
+        return obj;
+    }
 
-    query.exec("SELECT COUNT(*) FROM topic_applications WHERE status = 2");
-    if (query.next()) stats["rejected_application_count"] = query.value(0).toInt();
+    lastError = "Teacher not found for user_id";
+    return QJsonObject();
+}
 
-    return stats;
+QJsonObject DatabaseHandler::getStudentGroupInfoByUserId(int userId)
+{
+    QMutexLocker locker(&mutex);
+    if (!db.isOpen()) {
+        lastError = "Database not connected";
+        return QJsonObject();
+    }
+
+    QSqlQuery query;
+    query.prepare("SELECT group_id FROM student_groups WHERE user_id = ?");
+    query.addBindValue(userId);
+
+    if (!query.exec()) {
+        lastError = query.lastError().text();
+        qCritical() << "Get student group info by user_id failed:" << lastError;
+        return QJsonObject();
+    }
+
+    if (query.next()) {
+        QJsonObject obj;
+        obj["group_id"] = query.value(0).toInt();
+        return obj;
+    }
+
+    lastError = "Student group not found for user_id";
+    return QJsonObject();
+}
+
+bool DatabaseHandler::hasDependentData(int userId)
+{
+    QMutexLocker locker(&mutex);
+    QSqlQuery query;
+    qDebug() << "=== hasDependentData called for user ID:" << userId;
+
+    // 检查用户是否为教师且发布了课题（未关闭的）
+    query.prepare("SELECT COUNT(*) FROM topics t "
+                  "JOIN teachers te ON t.teacher_id = te.teacher_id "
+                  "WHERE te.user_id = ? AND t.status = 1");
+    query.addBindValue(userId);
+    if (query.exec() && query.next()) {
+        int count = query.value(0).toInt();
+        qDebug() << "Active topics count:" << count;
+        if (count > 0) {
+            return true;
+        }
+    }
+
+    // 检查用户是否为小组且有待审核申请（status=0）
+    query.prepare("SELECT COUNT(*) FROM topic_applications a "
+                  "JOIN student_groups sg ON a.group_id = sg.group_id "
+                  "WHERE sg.user_id = ? AND a.status = 0");
+    query.addBindValue(userId);
+    if (query.exec() && query.next()) {
+        int count = query.value(0).toInt();
+        qDebug() << "Pending applications count:" << count;
+        if (count > 0) {
+            return true;
+        }
+    }
+
+    // 检查用户是否有已通过的申请（已占用课题名额）
+    query.prepare("SELECT COUNT(*) FROM topic_applications a "
+                  "JOIN student_groups sg ON a.group_id = sg.group_id "
+                  "WHERE sg.user_id = ? AND a.status = 1");
+    query.addBindValue(userId);
+    if (query.exec() && query.next()) {
+        int count = query.value(0).toInt();
+        qDebug() << "Approved applications count:" << count;
+        if (count > 0) {
+            return true;
+        }
+    }
+
+    qDebug() << "No dependent data found";
+    return false;
+}
+
+bool DatabaseHandler::hasPendingApplications(int topicId)
+{
+    QMutexLocker locker(&mutex);
+    QSqlQuery query;
+    query.prepare("SELECT COUNT(*) FROM topic_applications WHERE topic_id = ? AND status = 0");
+    query.addBindValue(topicId);
+    if (query.exec() && query.next()) {
+        return query.value(0).toInt() > 0;
+    }
+    return false;
 }

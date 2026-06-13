@@ -24,13 +24,26 @@ int main(int argc, char *argv[])
     // 处理登录成功信号
     QObject::connect(&loginWindow, &LoginWindow::loginSuccess, 
                      [&](int userId, int userType, const QString& username, const QString& realName) {
+        qDebug() << "loginSuccess lambda called";
+        // //测试
+        // // 不要创建 MainWindow
+        // // 只是关闭登录窗口
+        // loginWindow.close();
+
+     //   ==========
         qDebug() << "Login success - User:" << username << "(ID:" << userId << ", Type:" << userType << ")";
         
         // 创建主窗口
+
+        qDebug() << "loginSuccess signal received! Creating main window...";
+
         mainWindow = new MainWindow(userId, userType, username, realName);
+        qDebug() << "MainWindow created, showing...";
+
         mainWindow->show();
         
         // 关闭登录窗口
+        qDebug() << "MainWindow shown, closing login window...";
         loginWindow.close();
     });
     

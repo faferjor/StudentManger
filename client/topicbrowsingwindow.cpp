@@ -13,12 +13,13 @@
 TopicBrowsingWindow::TopicBrowsingWindow(int userId, int userType, QWidget *parent) : QWidget(parent),
     userId(userId),
     userType(userType),
-    groupId(0)
+    groupId(0),
+    teachersLoaded(false),
+    applicationsLoaded(false)
 {
     initUI();
     initConnections();
     loadTeachers();
-    loadMyApplications();
 }
 
 TopicBrowsingWindow::~TopicBrowsingWindow()
@@ -418,7 +419,9 @@ void TopicBrowsingWindow::onApplyTopicClicked()
 
 void TopicBrowsingWindow::onRefreshClicked()
 {
-    loadTopics();
+    teachersLoaded = false;
+    applicationsLoaded = false;
+    loadTeachers();
 }
 
 void TopicBrowsingWindow::onSearchTextChanged(const QString& text)
@@ -463,9 +466,10 @@ void TopicBrowsingWindow::onTopicResponseReceived(const QString& requestId, cons
                 QString tname = teacher.value("real_name").toString();
                 teacherComboBox->addItem(tname, tid);
             }
+            teachersLoaded = true;
             currentRequestId.clear();
             currentRequestType.clear();
-            loadTopics();
+            loadMyApplications();
             return;
         } else if (currentRequestType == "GET_TOPICS") {
             QJsonArray topics = data.value("topics").toArray();
@@ -483,6 +487,7 @@ void TopicBrowsingWindow::onTopicResponseReceived(const QString& requestId, cons
         } else if (currentRequestType == "GET_APPLICATIONS") {
             myApplications = data.value("applications").toArray();
             updateAppliedTopics();
+            applicationsLoaded = true;
             currentRequestId.clear();
             currentRequestType.clear();
             loadTopics();

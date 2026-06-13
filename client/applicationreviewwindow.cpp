@@ -13,20 +13,24 @@
 ApplicationReviewWindow::ApplicationReviewWindow(int userType, int userId, QWidget *parent) : QWidget(parent),
     userType(userType),
     userId(userId),
-    teacherId(0)
+    teacherId(0),
+    groupId(0)
 {
     initUI();
     initConnections();
     
-    if (userType == 2) { // 教师
-        // 需要先获取教师ID
+    if (userType == 1) { // 管理员：先加载课题列表，完成后再加载申请
+        loadTopics();
+    } else if (userType == 2) { // 教师：先获取教师ID，完成后再加载申请
         QJsonObject params;
         params["user_id"] = userId;
         currentRequestType = "GET_USER_INFO";
         currentRequestId = NetworkManager::getInstance().sendRequestWithUserInfo("GET_USER_INFO", params);
-    } else { // 管理员
-        loadTopics();
-        loadApplications();
+    } else if (userType == 3) { // 学生小组：先获取小组ID，完成后再加载申请
+        QJsonObject params;
+        params["user_id"] = userId;
+        currentRequestType = "GET_USER_INFO";
+        currentRequestId = NetworkManager::getInstance().sendRequestWithUserInfo("GET_USER_INFO", params);
     }
 }
 
@@ -36,7 +40,15 @@ ApplicationReviewWindow::~ApplicationReviewWindow()
 
 void ApplicationReviewWindow::initUI()
 {
-    setWindowTitle(userType == 1 ? tr("申请管理") : tr("申请审核"));
+    QString windowTitle;
+    if (userType == 1) {
+        windowTitle = tr("申请管理");
+    } else if (userType == 2) {
+        windowTitle = tr("申请审核");
+    } else {
+        windowTitle = tr("我的申请");
+    }
+    setWindowTitle(windowTitle);
     setMinimumSize(1100, 600);
 
     // 主布局
@@ -45,8 +57,7 @@ void ApplicationReviewWindow::initUI()
     mainLayout->setSpacing(15);
 
     // 标题
-    QString title = userType == 1 ? tr("申请管理") : tr("申请审核");
-    QLabel* titleLabel = new QLabel(title, this);
+    QLabel* titleLabel = new QLabel(windowTitle, this);
     titleLabel->setStyleSheet("font-size: 20px; font-weight: bold; color: #343a40;");
     mainLayout->addWidget(titleLabel);
 
@@ -56,7 +67,7 @@ void ApplicationReviewWindow::initUI()
 
     QLabel* searchLabel = new QLabel(tr("搜索:"), this);
     searchLineEdit = new QLineEdit(this);
-    searchLineEdit->setPlaceholderText(tr("输入小组名称或课题名称"));
+    searchLineEdit->setPlaceholderText(tr("输入课题名称"));
     searchLineEdit->setMinimumWidth(200);
 
     QLabel* statusLabel = new QLabel(tr("状态:"), this);
@@ -65,24 +76,19 @@ void ApplicationReviewWindow::initUI()
     statusFilterComboBox->addItem(tr("待审核"), 0);
     statusFilterComboBox->addItem(tr("已通过"), 1);
     statusFilterComboBox->addItem(tr("已驳回"), 2);
-    statusFilterComboBox->setCurrentIndex(1); // 默认显示待审核
+    statusFilterComboBox->setCurrentIndex(0); // 默认显示全部
 
-    if (userType == 1) { // 管理员
+    searchLayout->addWidget(searchLabel);
+    searchLayout->addWidget(searchLineEdit);
+    searchLayout->addWidget(statusLabel);
+    searchLayout->addWidget(statusFilterComboBox);
+
+    if (userType == 1) { // 管理员额外显示课题筛选
         QLabel* topicLabel = new QLabel(tr("课题:"), this);
         topicFilterComboBox = new QComboBox(this);
         topicFilterComboBox->addItem(tr("全部课题"), -1);
-
-        searchLayout->addWidget(searchLabel);
-        searchLayout->addWidget(searchLineEdit);
-        searchLayout->addWidget(statusLabel);
-        searchLayout->addWidget(statusFilterComboBox);
         searchLayout->addWidget(topicLabel);
         searchLayout->addWidget(topicFilterComboBox);
-    } else {
-        searchLayout->addWidget(searchLabel);
-        searchLayout->addWidget(searchLineEdit);
-        searchLayout->addWidget(statusLabel);
-        searchLayout->addWidget(statusFilterComboBox);
     }
 
     searchLayout->addStretch();
@@ -90,42 +96,48 @@ void ApplicationReviewWindow::initUI()
 
     // 申请表格
     applicationTable = new QTableWidget(this);
-    int columnCount = userType == 1 ? 9 : 8;
-    applicationTable->setColumnCount(columnCount);
-    
+    int columnCount;
     QStringList headers;
     if (userType == 1) {
+        columnCount = 9;
         headers = {tr("申请ID"), tr("小组名称"), tr("课题名称"), tr("指导教师"), tr("申请时间"), tr("状态"), tr("审核时间"), tr("审核人"), tr("操作")};
-    } else {
+    } else if (userType == 2) {
+        columnCount = 8;
         headers = {tr("申请ID"), tr("小组名称"), tr("课题名称"), tr("申请时间"), tr("状态"), tr("审核时间"), tr("审核结果"), tr("操作")};
+    } else { // 学生
+        columnCount = 7;
+        headers = {tr("申请ID"), tr("课题名称"), tr("指导教师"), tr("申请时间"), tr("状态"), tr("审核结果"), tr("操作")};
     }
-    
+    applicationTable->setColumnCount(columnCount);
     applicationTable->setHorizontalHeaderLabels(headers);
     applicationTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     applicationTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     applicationTable->setSelectionMode(QAbstractItemView::SingleSelection);
     applicationTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     applicationTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-    applicationTable->horizontalHeader()->setSectionResizeMode(8, QHeaderView::ResizeToContents);
+    applicationTable->horizontalHeader()->setSectionResizeMode(columnCount - 1, QHeaderView::ResizeToContents);
     mainLayout->addWidget(applicationTable);
 
     // 按钮区域
     QHBoxLayout* buttonLayout = new QHBoxLayout();
     buttonLayout->setSpacing(10);
 
-    approveButton = new QPushButton(tr("通过选中申请"), this);
-    approveButton->setStyleSheet("background-color: #28a745; color: white; padding: 8px 16px; border: none; border-radius: 4px;");
-    approveButton->setEnabled(false);
-    
-    rejectButton = new QPushButton(tr("驳回选中申请"), this);
-    rejectButton->setStyleSheet("background-color: #dc3545; color: white; padding: 8px 16px; border: none; border-radius: 4px;");
-    rejectButton->setEnabled(false);
-    
+    if (userType == 1 || userType == 2) { // 管理员和教师显示审核按钮
+        approveButton = new QPushButton(tr("通过选中申请"), this);
+        approveButton->setStyleSheet("background-color: #28a745; color: white; padding: 8px 16px; border: none; border-radius: 4px;");
+        approveButton->setEnabled(false);
+
+        rejectButton = new QPushButton(tr("驳回选中申请"), this);
+        rejectButton->setStyleSheet("background-color: #dc3545; color: white; padding: 8px 16px; border: none; border-radius: 4px;");
+        rejectButton->setEnabled(false);
+
+        buttonLayout->addWidget(approveButton);
+        buttonLayout->addWidget(rejectButton);
+    }
+
     refreshButton = new QPushButton(tr("刷新"), this);
     refreshButton->setStyleSheet("background-color: #6c757d; color: white; padding: 8px 16px; border: none; border-radius: 4px;");
 
-    buttonLayout->addWidget(approveButton);
-    buttonLayout->addWidget(rejectButton);
     buttonLayout->addWidget(refreshButton);
     buttonLayout->addStretch();
 
@@ -134,28 +146,43 @@ void ApplicationReviewWindow::initUI()
 
 void ApplicationReviewWindow::initConnections()
 {
-    connect(approveButton, &QPushButton::clicked, this, &ApplicationReviewWindow::onApproveClicked);
-    connect(rejectButton, &QPushButton::clicked, this, &ApplicationReviewWindow::onRejectClicked);
-    connect(refreshButton, &QPushButton::clicked, this, &ApplicationReviewWindow::onRefreshClicked);
-    connect(searchLineEdit, &QLineEdit::textChanged, this, &ApplicationReviewWindow::onSearchTextChanged);
-    connect(statusFilterComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &ApplicationReviewWindow::onRefreshClicked);
-    if (topicFilterComboBox) {
-        connect(topicFilterComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &ApplicationReviewWindow::onRefreshClicked);
-    }
-    connect(applicationTable, &QTableWidget::itemSelectionChanged, this, [this]() {
-        bool hasSelection = !applicationTable->selectedItems().isEmpty();
-        bool canReview = false;
-        
-        if (hasSelection) {
-            QModelIndexList selected = applicationTable->selectionModel()->selectedRows();
-            int row = selected.first().row();
-            QString status = applicationTable->item(row, 5)->text();
-            canReview = (status == tr("待审核"));
+    if (userType == 1 || userType == 2) { // 只有管理员和教师有审核按钮
+        if (approveButton && rejectButton) {
+            connect(approveButton, &QPushButton::clicked, this, &ApplicationReviewWindow::onApproveClicked);
+            connect(rejectButton, &QPushButton::clicked, this, &ApplicationReviewWindow::onRejectClicked);
         }
-        
-        approveButton->setEnabled(hasSelection && canReview);
-        rejectButton->setEnabled(hasSelection && canReview);
-    });
+    }
+    if (refreshButton) {
+        connect(refreshButton, &QPushButton::clicked, this, &ApplicationReviewWindow::onRefreshClicked);
+    }
+    if (searchLineEdit) {
+        connect(searchLineEdit, &QLineEdit::textChanged, this, &ApplicationReviewWindow::onSearchTextChanged);
+    }
+    if (statusFilterComboBox) {
+        connect(statusFilterComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &ApplicationReviewWindow::onStatusFilterChanged);
+    }
+    if (topicFilterComboBox) {
+        connect(topicFilterComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &ApplicationReviewWindow::onTopicFilterChanged);
+    }
+    if ((userType == 1 || userType == 2) && approveButton && rejectButton) { // 只有管理员和教师需要选择状态来控制审核按钮
+        connect(applicationTable, &QTableWidget::itemSelectionChanged, this, [this]() {
+            bool hasSelection = !applicationTable->selectedItems().isEmpty();
+            bool canReview = false;
+            
+            if (hasSelection) {
+                QModelIndexList selected = applicationTable->selectionModel()->selectedRows();
+                int row = selected.first().row();
+                int statusCol = userType == 1 ? 5 : 4;
+                QTableWidgetItem* item = applicationTable->item(row, statusCol);
+                if (item) {
+                    canReview = (item->text() == tr("待审核"));
+                }
+            }
+            
+            if (approveButton) approveButton->setEnabled(hasSelection && canReview);
+            if (rejectButton) rejectButton->setEnabled(hasSelection && canReview);
+        });
+    }
     connect(&NetworkManager::getInstance(), &NetworkManager::responseReceived, this, &ApplicationReviewWindow::onResponseReceived);
 }
 
@@ -181,7 +208,7 @@ void ApplicationReviewWindow::loadApplications()
 
     int status = statusFilterComboBox->currentData().toInt();
     int topicId = -1;
-    int groupId = -1;
+    int queryGroupId = -1;
     
     if (userType == 1) { // 管理员
         if (topicFilterComboBox) {
@@ -189,6 +216,8 @@ void ApplicationReviewWindow::loadApplications()
         }
     } else if (userType == 2) { // 教师
         topicId = teacherId;
+    } else if (userType == 3) { // 学生小组
+        queryGroupId = groupId;
     }
 
     QJsonObject params;
@@ -198,8 +227,8 @@ void ApplicationReviewWindow::loadApplications()
     if (topicId != -1) {
         params["topic_id"] = topicId;
     }
-    if (groupId != -1) {
-        params["group_id"] = groupId;
+    if (queryGroupId != -1) {
+        params["group_id"] = queryGroupId;
     }
 
     currentRequestType = "GET_APPLICATIONS";
@@ -254,26 +283,35 @@ void ApplicationReviewWindow::updateApplicationTable(const QJsonArray& applicati
 
         int column = 0;
         applicationTable->setItem(row, column++, new QTableWidgetItem(QString::number(appId)));
-        applicationTable->setItem(row, column++, new QTableWidgetItem(groupName));
-        applicationTable->setItem(row, column++, new QTableWidgetItem(topicName));
-        
-        if (userType == 1) { // 管理员显示指导教师
+
+        if (userType == 3) { // 学生：不显示小组名称，直接显示课题名称、指导教师
+            applicationTable->setItem(row, column++, new QTableWidgetItem(topicName));
             applicationTable->setItem(row, column++, new QTableWidgetItem(teacherName));
+        } else {
+            applicationTable->setItem(row, column++, new QTableWidgetItem(groupName));
+            applicationTable->setItem(row, column++, new QTableWidgetItem(topicName));
+            if (userType == 1) { // 管理员显示指导教师
+                applicationTable->setItem(row, column++, new QTableWidgetItem(teacherName));
+            }
         }
-        
+
         applicationTable->setItem(row, column++, new QTableWidgetItem(applyTime));
-        
+
         QTableWidgetItem* statusItem = new QTableWidgetItem(statusStr);
         applicationTable->setItem(row, column++, statusItem);
-        
-        QString reviewTimeStr = reviewTime.isEmpty() ? tr("未审核") : reviewTime.left(19);
-        applicationTable->setItem(row, column++, new QTableWidgetItem(reviewTimeStr));
-        
-        if (userType == 1) { // 管理员显示审核人
-            QString reviewerStr = reviewerName.isEmpty() ? tr("未审核") : reviewerName;
-            applicationTable->setItem(row, column++, new QTableWidgetItem(reviewerStr));
-        } else { // 教师显示审核结果
+
+        if (userType == 3) { // 学生只显示审核结果
             applicationTable->setItem(row, column++, new QTableWidgetItem(resultStr));
+        } else {
+            QString reviewTimeStr = reviewTime.isEmpty() ? tr("未审核") : reviewTime.left(19);
+            applicationTable->setItem(row, column++, new QTableWidgetItem(reviewTimeStr));
+
+            if (userType == 1) { // 管理员显示审核人
+                QString reviewerStr = reviewerName.isEmpty() ? tr("未审核") : reviewerName;
+                applicationTable->setItem(row, column++, new QTableWidgetItem(reviewerStr));
+            } else { // 教师显示审核结果
+                applicationTable->setItem(row, column++, new QTableWidgetItem(resultStr));
+            }
         }
 
         // 操作按钮
@@ -289,25 +327,29 @@ void ApplicationReviewWindow::updateApplicationTable(const QJsonArray& applicati
             showApplicationDetail(app);
         });
 
-        if (status == 0) { // 待审核
-            QPushButton* approveBtn = new QPushButton(tr("通过"));
-            approveBtn->setStyleSheet("background-color: #28a745; color: white; padding: 4px 8px; border: none; border-radius: 3px; font-size: 12px;");
-            approveBtn->setFixedSize(60, 25);
-            connect(approveBtn, &QPushButton::clicked, this, [=]() {
-                updateApplicationStatus(appId, 1);
-            });
+        if (userType == 1 || userType == 2) { // 只有管理员和教师显示审核按钮
+            if (status == 0) { // 待审核
+                QPushButton* approveBtn = new QPushButton(tr("通过"));
+                approveBtn->setStyleSheet("background-color: #28a745; color: white; padding: 4px 8px; border: none; border-radius: 3px; font-size: 12px;");
+                approveBtn->setFixedSize(60, 25);
+                connect(approveBtn, &QPushButton::clicked, this, [=]() {
+                    updateApplicationStatus(appId, 1);
+                });
 
-            QPushButton* rejectBtn = new QPushButton(tr("驳回"));
-            rejectBtn->setStyleSheet("background-color: #dc3545; color: white; padding: 4px 8px; border: none; border-radius: 3px; font-size: 12px;");
-            rejectBtn->setFixedSize(60, 25);
-            connect(rejectBtn, &QPushButton::clicked, this, [=]() {
-                showRejectDialog(app);
-            });
+                QPushButton* rejectBtn = new QPushButton(tr("驳回"));
+                rejectBtn->setStyleSheet("background-color: #dc3545; color: white; padding: 4px 8px; border: none; border-radius: 3px; font-size: 12px;");
+                rejectBtn->setFixedSize(60, 25);
+                connect(rejectBtn, &QPushButton::clicked, this, [=]() {
+                    showRejectDialog(app);
+                });
 
-            buttonLayout->addWidget(detailButton);
-            buttonLayout->addWidget(approveBtn);
-            buttonLayout->addWidget(rejectBtn);
-        } else {
+                buttonLayout->addWidget(detailButton);
+                buttonLayout->addWidget(approveBtn);
+                buttonLayout->addWidget(rejectBtn);
+            } else {
+                buttonLayout->addWidget(detailButton);
+            }
+        } else { // 学生只有详情按钮
             buttonLayout->addWidget(detailButton);
         }
 
@@ -517,7 +559,11 @@ void ApplicationReviewWindow::onRejectClicked()
 
 void ApplicationReviewWindow::onRefreshClicked()
 {
-    loadApplications();
+    if (userType == 1) { // 管理员：先刷新课题列表，再刷新申请
+        loadTopics();
+    } else { // 教师和学生：直接刷新申请
+        loadApplications();
+    }
 }
 
 void ApplicationReviewWindow::onStatusFilterChanged(int index)
@@ -536,9 +582,22 @@ void ApplicationReviewWindow::onSearchTextChanged(const QString& text)
 {
     // 简单的客户端搜索过滤
     for (int i = 0; i < applicationTable->rowCount(); ++i) {
-        QString groupName = applicationTable->item(i, 1)->text();
-        QString topicName = applicationTable->item(i, 2)->text();
-        bool match = groupName.contains(text, Qt::CaseInsensitive) || topicName.contains(text, Qt::CaseInsensitive);
+        bool match = false;
+        if (userType == 3) { // 学生：列1是课题名称
+            QTableWidgetItem* item = applicationTable->item(i, 1);
+            if (item) {
+                QString topicName = item->text();
+                match = topicName.contains(text, Qt::CaseInsensitive);
+            }
+        } else { // 管理员/教师：列1是小组名称，列2是课题名称
+            QTableWidgetItem* groupItem = applicationTable->item(i, 1);
+            QTableWidgetItem* topicItem = applicationTable->item(i, 2);
+            if (groupItem && topicItem) {
+                QString groupName = groupItem->text();
+                QString topicName = topicItem->text();
+                match = groupName.contains(text, Qt::CaseInsensitive) || topicName.contains(text, Qt::CaseInsensitive);
+            }
+        }
         applicationTable->setRowHidden(i, !match);
     }
 }
@@ -557,7 +616,11 @@ void ApplicationReviewWindow::onResponseReceived(const QString& requestId, const
         
         if (currentRequestType == "GET_USER_INFO") { // 用户信息
             QJsonObject userInfo = data.value("user_info").toObject();
-            teacherId = userInfo.value("teacher_id").toInt();
+            if (userType == 2) { // 教师获取 teacher_id
+                teacherId = userInfo.value("teacher_id").toInt();
+            } else if (userType == 3) { // 学生获取 group_id
+                groupId = userInfo.value("group_id").toInt();
+            }
             currentRequestId.clear();
             currentRequestType.clear();
             loadApplications(); // 加载申请
@@ -565,14 +628,16 @@ void ApplicationReviewWindow::onResponseReceived(const QString& requestId, const
         } else if (currentRequestType == "GET_TOPICS") { // 课题列表
             QJsonArray topics = data.value("topics").toArray();
 
-            topicFilterComboBox->clear();
-            topicFilterComboBox->addItem(tr("全部课题"), -1);
+            if (topicFilterComboBox) { // 只有管理员有此控件
+                topicFilterComboBox->clear();
+                topicFilterComboBox->addItem(tr("全部课题"), -1);
 
-            for (const QJsonValue& value : topics) {
-                QJsonObject topic = value.toObject();
-                int topicId = topic.value("topic_id").toInt();
-                QString topicName = topic.value("topic_name").toString();
-                topicFilterComboBox->addItem(topicName, topicId);
+                for (const QJsonValue& value : topics) {
+                    QJsonObject topic = value.toObject();
+                    int topicId = topic.value("topic_id").toInt();
+                    QString topicName = topic.value("topic_name").toString();
+                    topicFilterComboBox->addItem(topicName, topicId);
+                }
             }
             currentRequestId.clear();
             currentRequestType.clear();

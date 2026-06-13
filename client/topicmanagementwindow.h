@@ -38,27 +38,28 @@ private:
     void showTopicDialog(const QJsonObject& topicInfo = QJsonObject());
     void loadTeachers();
 
-    QTableWidget* topicTable;
-    QLineEdit* searchLineEdit;
-    QComboBox* statusFilterComboBox;
-    QComboBox* teacherComboBox;
-    QPushButton* addTopicButton;
-    QPushButton* editTopicButton;
-    QPushButton* deleteTopicButton;
-    QPushButton* refreshButton;
+    QTableWidget* topicTable = nullptr;
+    QLineEdit* searchLineEdit = nullptr;
+    QComboBox* statusFilterComboBox = nullptr;
+    QComboBox* teacherComboBox = nullptr;
+    QPushButton* addTopicButton = nullptr;
+    QPushButton* editTopicButton = nullptr;
+    QPushButton* deleteTopicButton = nullptr;
+    QPushButton* refreshButton = nullptr;
 
     QString currentRequestId;
     QString currentRequestType;
-    QDialog* topicDialog;
-    QLineEdit* topicNameLineEdit;
-    QComboBox* topicTeacherComboBox;
-    QTextEdit* descriptionTextEdit;
-    QTextEdit* requirementsTextEdit;
-    QLineEdit* maxStudentsLineEdit;
-    QComboBox* statusComboBox;
+    QDialog* topicDialog = nullptr;
+    QLineEdit* topicNameLineEdit = nullptr;
+    QComboBox* topicTeacherComboBox = nullptr;
+    QTextEdit* descriptionTextEdit = nullptr;
+    QTextEdit* requirementsTextEdit = nullptr;
+    QLineEdit* maxStudentsLineEdit = nullptr;
+    QComboBox* statusComboBox = nullptr;
     
     int userType;
     int userId;
+    int teacherId;
     QJsonArray teachers;
 };
 

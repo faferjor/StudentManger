@@ -1,0 +1,79 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-.-Debug-9d79615c54bdf4fb3da3.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.16"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "StudentTopicSystemServer",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "StudentTopicSystemServer::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-StudentTopicSystemServer-Debug-16277b8acad2f2dcabe5.json",
+					"name" : "StudentTopicSystemServer",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "StudentTopicSystemServer_autogen::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-StudentTopicSystemServer_autogen-Debug-9d028a7259bf696accf6.json",
+					"name" : "StudentTopicSystemServer_autogen",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "StudentTopicSystemServer_autogen_timestamp_deps::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-StudentTopicSystemServer_autogen_timestamp_deps-Debug-14349e7996b76b716879.json",
+					"name" : "StudentTopicSystemServer_autogen_timestamp_deps",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "E:/code/Git/StudentManger/build",
+		"source" : "E:/code/Git/StudentManger/server"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 8
+	}
+}

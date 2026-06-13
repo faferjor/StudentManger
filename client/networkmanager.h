@@ -61,7 +61,7 @@ public:
     QString sendRequestWithUserInfo(const QString& command, const QJsonObject& data = QJsonObject());
 
     // 设置当前用户信息
-    void setCurrentUser(int userId, int userType, const QString& username);
+    void setCurrentUser(int userId, int userType, const QString& username, const QString& realName = "");
 
     // 获取当前用户信息
     QJsonObject getCurrentUser() const;
@@ -111,6 +111,7 @@ private:
     int currentUserId;
     int currentUserType;
     QString currentUsername;
+    QString currentRealName;
 
     // 请求管理
     struct PendingRequest {

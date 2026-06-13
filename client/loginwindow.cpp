@@ -142,8 +142,7 @@ void LoginWindow::onResponseReceived(const QString& requestId, const QJsonObject
         QString realName = userInfo.value("real_name").toString();
         
         // 保存用户信息到网络管理器
-        //====
-        networkManager.setCurrentUser(userId, userType, username);
+        networkManager.setCurrentUser(userId, userType, username, realName);
         
         showStatus(tr("登录成功！欢迎回来，%1").arg(realName), false);
         

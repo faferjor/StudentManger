@@ -11,12 +11,24 @@
 
 TopicManagementWindow::TopicManagementWindow(int userType, int userId, QWidget *parent) : QWidget(parent),
     userType(userType),
-    userId(userId)
+    userId(userId),
+    teacherId(0)
 {
     initUI();
     initConnections();
-    loadTeachers();
-    loadTopics();
+    
+    if (userType == 1) {
+        // 管理员：先加载教师列表，然后在响应处理中加载课题
+        loadTeachers();
+    } else if (userType == 2) {
+        // 教师：先通过 GET_USER_INFO 获取正确的 teacher_id
+        QJsonObject params;
+        params["user_id"] = userId;
+        currentRequestType = "GET_USER_INFO";
+        currentRequestId = NetworkManager::getInstance().sendRequestWithUserInfo("GET_USER_INFO", params);
+    } else {
+        loadTopics();
+    }
 }
 
 TopicManagementWindow::~TopicManagementWindow()
@@ -279,7 +291,7 @@ void TopicManagementWindow::showTopicDialog(const QJsonObject& topicInfo)
         // 教师只能选择自己作为指导教师
         QJsonObject userInfo = NetworkManager::getInstance().getCurrentUser();
         QString realName = userInfo.value("real_name").toString();
-        topicTeacherComboBox->addItem(realName, userId);
+        topicTeacherComboBox->addItem(realName, teacherId);
         topicTeacherComboBox->setEnabled(false);
     }
 
@@ -395,7 +407,11 @@ void TopicManagementWindow::onDeleteTopicClicked()
 
 void TopicManagementWindow::onRefreshClicked()
 {
-    loadTopics();
+    if (userType == 1) {
+        loadTeachers(); // 管理员：先重新加载教师列表，再加载课题
+    } else {
+        loadTopics();
+    }
 }
 
 void TopicManagementWindow::onSearchTextChanged(const QString& text)
@@ -446,11 +462,18 @@ void TopicManagementWindow::onTopicResponseReceived(const QString& requestId, co
             updateTopicTable(topics);
         } else if (currentRequestType == "GET_USER_INFO") { // 获取用户信息（教师）
             QJsonObject userInfo = data.value("user_info").toObject();
-            int teacherId = userInfo.value("teacher_id").toInt();
+            this->teacherId = userInfo.value("teacher_id").toInt();
+            
+            // 添加教师信息到 teachers 数组，供添加课题时使用
+            QJsonObject selfTeacher;
+            selfTeacher["user_id"] = this->teacherId;
+            QJsonObject currentUser = NetworkManager::getInstance().getCurrentUser();
+            selfTeacher["real_name"] = currentUser.value("real_name").toString();
+            teachers.append(selfTeacher);
             
             QJsonObject params;
             params["status"] = statusFilterComboBox->currentData().toInt();
-            params["teacher_id"] = teacherId;
+            params["teacher_id"] = this->teacherId;
             
             currentRequestId.clear();
             currentRequestType.clear();

@@ -199,7 +199,12 @@ void ClientHandler::handleLogin(const QString& requestId, const QJsonObject& dat
 
 void ClientHandler::handleGetUserInfo(const QString& requestId, const QJsonObject& data)
 {
-    int targetUserId = data.value("user_id").toInt();
+    QJsonObject actualData = data;
+    if (data.contains("data") && data.value("data").isObject()) {
+        actualData = data.value("data").toObject();
+    }
+
+    int targetUserId = actualData.value("user_id").toInt();
     if (targetUserId <= 0) {
         sendErrorResponse(requestId, "Invalid user ID");
         return;

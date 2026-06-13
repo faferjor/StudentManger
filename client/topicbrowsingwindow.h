@@ -37,22 +37,23 @@ private:
     void loadMyApplications();
     void updateAppliedTopics();
 
-    QTableWidget* topicTable;
-    QLineEdit* searchLineEdit;
-    QComboBox* statusFilterComboBox;
-    QComboBox* teacherComboBox;
-    QPushButton* applyTopicButton;
-    QPushButton* refreshButton;
+    QTableWidget* topicTable = nullptr;
+    QLineEdit* searchLineEdit = nullptr;
+    QComboBox* statusFilterComboBox = nullptr;
+    QComboBox* teacherComboBox = nullptr;
+    QPushButton* applyTopicButton = nullptr;
+    QPushButton* refreshButton = nullptr;
 
     QString currentRequestId;
     QString currentRequestType;
-    QDialog* applyDialog;
-    QTextEdit* reasonTextEdit;
+    QDialog* applyDialog = nullptr;
+    QTextEdit* reasonTextEdit = nullptr;
 
     int userId;
     int userType;
-    int groupId;
-    QJsonArray teachers;
+    int groupId = 0;
+    bool teachersLoaded = false;
+    bool applicationsLoaded = false;
     QJsonArray myApplications;
     QSet<int> appliedTopicIds;
 };

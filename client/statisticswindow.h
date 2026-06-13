@@ -52,6 +52,8 @@ private:
     QString currentRequestType;
     int userType;
     int userId;
+    int teacherId;
+    int groupId;
     QJsonObject currentStats;
     QString currentStatType;
 };

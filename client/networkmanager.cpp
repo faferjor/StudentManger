@@ -178,40 +178,31 @@ QString NetworkManager::sendRequestWithUserInfo(const QString& command, const QJ
     return sendRequest(command, fullData);
 }
 
-void NetworkManager::setCurrentUser(int userId, int userType, const QString& username)
+void NetworkManager::setCurrentUser(int userId, int userType, const QString& username, const QString& realName)
 {
-    //======测试
-    // qDebug() << "setCurrentUser: start, userId=" << userId;
-    // QMutexLocker locker(&mutex);
-    qDebug() << "setCurrentUser:  locked";
     currentUserId = userId;
     currentUserType = userType;
     currentUsername = username;
-    qDebug() << "setCurrentUser: end";
-
-
-    // QMutexLocker locker(&mutex);
-    // currentUserId = userId;
-    // currentUserType = userType;
-    // currentUsername = username;
+    currentRealName = realName;
+    qDebug() << "setCurrentUser:" << userId << userType << username << realName;
 }
 
 QJsonObject NetworkManager::getCurrentUser() const
 {
-   // QMutexLocker locker(const_cast<QMutex*>(&mutex));
     QJsonObject userInfo;
     userInfo["user_id"] = currentUserId;
     userInfo["user_type"] = currentUserType;
     userInfo["username"] = currentUsername;
+    userInfo["real_name"] = currentRealName;
     return userInfo;
 }
 
 void NetworkManager::clearCurrentUser()
 {
-   // QMutexLocker locker(&mutex);
     currentUserId = 0;
     currentUserType = 0;
     currentUsername.clear();
+    currentRealName.clear();
 
     //退出登录时清除 Token
     setSessionToken("");

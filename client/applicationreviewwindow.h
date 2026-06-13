@@ -36,19 +36,20 @@ private:
     void updateApplicationTable(const QJsonArray& applications);
     void updateApplicationStatus(int applicationId, int status, const QString& rejectReason = "");
 
-    QTableWidget* applicationTable;
-    QLineEdit* searchLineEdit;
-    QComboBox* statusFilterComboBox;
-    QComboBox* topicFilterComboBox;
-    QPushButton* approveButton;
-    QPushButton* rejectButton;
-    QPushButton* refreshButton;
+    QTableWidget* applicationTable = nullptr;
+    QLineEdit* searchLineEdit = nullptr;
+    QComboBox* statusFilterComboBox = nullptr;
+    QComboBox* topicFilterComboBox = nullptr;
+    QPushButton* approveButton = nullptr;
+    QPushButton* rejectButton = nullptr;
+    QPushButton* refreshButton = nullptr;
 
     QString currentRequestId;
     QString currentRequestType;
     int userType;
     int userId;
-    int teacherId;
+    int teacherId = 0;
+    int groupId = 0;
     QJsonArray topics;
 };
 

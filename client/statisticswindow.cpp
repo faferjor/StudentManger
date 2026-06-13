@@ -17,11 +17,22 @@
 
 StatisticsWindow::StatisticsWindow(int userType, int userId, QWidget *parent) : QWidget(parent),
     userType(userType),
-    userId(userId)
+    userId(userId),
+    teacherId(0),
+    groupId(0)
 {
     initUI();
     initConnections();
-    loadStatistics();
+
+    if (userType == 2 || userType == 3) {
+        // 教师和学生：先通过 GET_USER_INFO 获取正确的 teacher_id/group_id
+        QJsonObject params;
+        params["user_id"] = userId;
+        currentRequestType = "GET_USER_INFO";
+        currentRequestId = NetworkManager::getInstance().sendRequestWithUserInfo("GET_USER_INFO", params);
+    } else {
+        loadStatistics();
+    }
 }
 
 StatisticsWindow::~StatisticsWindow()
@@ -31,7 +42,8 @@ StatisticsWindow::~StatisticsWindow()
 void StatisticsWindow::initUI()
 {
     setWindowTitle(tr("数据统计"));
-    setMinimumSize(900, 600);
+    setMinimumSize(1000, 700);
+    resize(1100, 800);
 
     // 主布局
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
@@ -41,6 +53,7 @@ void StatisticsWindow::initUI()
     // 标题
     QLabel* titleLabel = new QLabel(tr("数据统计"), this);
     titleLabel->setStyleSheet("font-size: 20px; font-weight: bold; color: #343a40;");
+    titleLabel->setAlignment(Qt::AlignLeft);
     mainLayout->addWidget(titleLabel);
 
     // 顶部工具栏
@@ -48,10 +61,13 @@ void StatisticsWindow::initUI()
     toolLayout->setSpacing(10);
 
     QLabel* statTypeLabel = new QLabel(tr("统计类型:"), this);
+    statTypeLabel->setStyleSheet("font-size: 12px;");
     statTypeComboBox = new QComboBox(this);
     statTypeComboBox->addItem(tr("用户统计"), "user");
     statTypeComboBox->addItem(tr("课题统计"), "topic");
     statTypeComboBox->addItem(tr("申请统计"), "application");
+    statTypeComboBox->setMinimumHeight(30);
+    statTypeComboBox->setStyleSheet("font-size: 12px; padding: 5px;");
     
     // 根据用户类型调整可查看的统计类型
     if (userType == 2) { // 教师
@@ -63,10 +79,12 @@ void StatisticsWindow::initUI()
     }
 
     exportButton = new QPushButton(tr("导出数据"), this);
-    exportButton->setStyleSheet("background-color: #007bff; color: white; padding: 8px 16px; border: none; border-radius: 4px;");
+    exportButton->setStyleSheet("background-color: #007bff; color: white; padding: 8px 16px; border: none; border-radius: 4px; font-size: 12px;");
+    exportButton->setMinimumHeight(30);
     
     refreshButton = new QPushButton(tr("刷新"), this);
-    refreshButton->setStyleSheet("background-color: #6c757d; color: white; padding: 8px 16px; border: none; border-radius: 4px;");
+    refreshButton->setStyleSheet("background-color: #6c757d; color: white; padding: 8px 16px; border: none; border-radius: 4px; font-size: 12px;");
+    refreshButton->setMinimumHeight(30);
 
     toolLayout->addWidget(statTypeLabel);
     toolLayout->addWidget(statTypeComboBox);
@@ -76,10 +94,20 @@ void StatisticsWindow::initUI()
 
     mainLayout->addLayout(toolLayout);
 
+    // 滚动区域 - 确保内容超出时可以滚动查看
+    QScrollArea* scrollArea = new QScrollArea(this);
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setStyleSheet("QScrollArea { border: 1px solid #dee2e6; border-radius: 4px; background-color: white; }");
+    scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+
     // 图表容器
-    chartContainer = new QWidget(this);
-    chartContainer->setStyleSheet("border: 1px solid #dee2e6; border-radius: 4px; background-color: white;");
-    mainLayout->addWidget(chartContainer);
+    chartContainer = new QWidget();
+    chartContainer->setStyleSheet("background-color: white;");
+    chartContainer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    
+    scrollArea->setWidget(chartContainer);
+    mainLayout->addWidget(scrollArea, 1); // 1 表示拉伸因子，让滚动区域占满剩余空间
 }
 
 void StatisticsWindow::initConnections()
@@ -102,11 +130,11 @@ void StatisticsWindow::loadStatistics()
 
     QJsonObject params;
     params["type"] = statType;
-    
+
     if (userType == 2) { // 教师
-        params["teacher_id"] = userId;
+        params["teacher_id"] = teacherId;
     } else if (userType == 3) { // 学生
-        params["group_id"] = userId;
+        params["group_id"] = groupId;
     }
 
     currentRequestType = "GET_STATISTICS";
@@ -134,28 +162,32 @@ void StatisticsWindow::showUserStatistics(const QJsonObject& stats)
     QGroupBox* userTypeGroup = new QGroupBox(tr("用户类型分布"), chartContainer);
     QVBoxLayout* userTypeLayout = new QVBoxLayout(userTypeGroup);
 
-    QPieSeries* userTypeSeries = new QPieSeries();  // 不设父对象
-    userTypeSeries->append(tr("管理员: %1").arg(stats.value("admin_count").toInt()),
-                           stats.value("admin_count").toInt());
-    userTypeSeries->append(tr("教师: %1").arg(stats.value("teacher_count").toInt()),
-                           stats.value("teacher_count").toInt());
-    userTypeSeries->append(tr("学生小组: %1").arg(stats.value("student_count").toInt()),
-                           stats.value("student_count").toInt());
+    QPieSeries* userTypeSeries = new QPieSeries();
+    userTypeSeries->append(tr("管理员"), stats.value("admin_count").toInt());
+    userTypeSeries->append(tr("教师"), stats.value("teacher_count").toInt());
+    userTypeSeries->append(tr("学生小组"), stats.value("student_count").toInt());
 
     for (QPieSlice* slice : userTypeSeries->slices()) {
         slice->setLabelVisible(true);
         slice->setLabelPosition(QPieSlice::LabelOutside);
+        QString label = QString("%1: %2").arg(slice->label()).arg(slice->value());
+        slice->setLabel(label);
     }
 
-    QChart* userTypeChart = new QChart();  // 不设父对象
+    QChart* userTypeChart = new QChart();
     userTypeChart->addSeries(userTypeSeries);
     userTypeChart->setTitle(tr("用户类型分布"));
+    userTypeChart->setTitleFont(QFont("Arial", 12, QFont::Bold));
     userTypeChart->legend()->setAlignment(Qt::AlignBottom);
+    userTypeChart->legend()->setFont(QFont("Arial", 10));
+    userTypeChart->setMargins(QMargins(20, 20, 20, 20));
+    userTypeChart->legend()->show();
 
-    QChartView* userTypeChartView = new QChartView(userTypeChart, userTypeGroup);  // 父对象为 groupBox
+    QChartView* userTypeChartView = new QChartView(userTypeChart, userTypeGroup);
     userTypeChartView->setRenderHint(QPainter::Antialiasing);
-    userTypeChartView->setMinimumHeight(300);
-    userTypeLayout->addWidget(userTypeChartView);
+    userTypeChartView->setMinimumHeight(400);
+    userTypeChartView->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    userTypeLayout->addWidget(userTypeChartView, 1);
 
     layout->addWidget(userTypeGroup);
 
@@ -167,20 +199,29 @@ void StatisticsWindow::showUserStatistics(const QJsonObject& stats)
     statusTable->setColumnCount(3);
     statusTable->setHorizontalHeaderLabels({tr("状态"), tr("数量"), tr("占比")});
     statusTable->setRowCount(2);
+    statusTable->setFont(QFont("Arial", 11));
+    statusTable->setAlternatingRowColors(true);
+    statusTable->setStyleSheet("QTableWidget { border: 1px solid #dee2e6; } QHeaderView::section { background-color: #f8f9fa; padding: 8px; border: 1px solid #dee2e6; font-weight: bold; }");
 
     int activeCount = stats.value("active_user_count").toInt();
     int inactiveCount = stats.value("inactive_user_count").toInt();
     int totalUsers = activeCount + inactiveCount;
 
-    statusTable->setItem(0, 0, new QTableWidgetItem(tr("正常")));
-    statusTable->setItem(0, 1, new QTableWidgetItem(QString::number(activeCount)));
-    statusTable->setItem(0, 2, new QTableWidgetItem(QString("%.1f%%").arg(totalUsers > 0 ? (activeCount * 100.0 / totalUsers) : 0)));
+    QTableWidgetItem* item;
+    item = new QTableWidgetItem(tr("正常")); item->setTextAlignment(Qt::AlignCenter); statusTable->setItem(0, 0, item);
+    item = new QTableWidgetItem(QString::number(activeCount)); item->setTextAlignment(Qt::AlignCenter); statusTable->setItem(0, 1, item);
+    item = new QTableWidgetItem(QString::number(totalUsers > 0 ? (activeCount * 100.0 / totalUsers) : 0, 'f', 1) + "%"); item->setTextAlignment(Qt::AlignCenter); statusTable->setItem(0, 2, item);
 
-    statusTable->setItem(1, 0, new QTableWidgetItem(tr("禁用")));
-    statusTable->setItem(1, 1, new QTableWidgetItem(QString::number(inactiveCount)));
-    statusTable->setItem(1, 2, new QTableWidgetItem(QString("%.1f%%").arg(totalUsers > 0 ? (inactiveCount * 100.0 / totalUsers) : 0)));
+    item = new QTableWidgetItem(tr("禁用")); item->setTextAlignment(Qt::AlignCenter); statusTable->setItem(1, 0, item);
+    item = new QTableWidgetItem(QString::number(inactiveCount)); item->setTextAlignment(Qt::AlignCenter); statusTable->setItem(1, 1, item);
+    item = new QTableWidgetItem(QString::number(totalUsers > 0 ? (inactiveCount * 100.0 / totalUsers) : 0, 'f', 1) + "%"); item->setTextAlignment(Qt::AlignCenter); statusTable->setItem(1, 2, item);
 
     statusTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    statusTable->horizontalHeader()->setDefaultSectionSize(120);
+    statusTable->horizontalHeader()->setMinimumHeight(35);
+    statusTable->verticalHeader()->setDefaultSectionSize(40);
+    statusTable->verticalHeader()->setVisible(false);
+    statusTable->setMinimumHeight(160);
     statusLayout->addWidget(statusTable);
 
     layout->addWidget(statusGroup);
@@ -206,25 +247,30 @@ void StatisticsWindow::showTopicStatistics(const QJsonObject& stats)
     QVBoxLayout* statusLayout = new QVBoxLayout(statusGroup);
 
     QPieSeries* statusSeries = new QPieSeries();
-    statusSeries->append(tr("可选题: %1").arg(stats.value("active_topic_count").toInt()),
-                         stats.value("active_topic_count").toInt());
-    statusSeries->append(tr("已关闭: %1").arg(stats.value("closed_topic_count").toInt()),
-                         stats.value("closed_topic_count").toInt());
+    statusSeries->append(tr("可选题"), stats.value("active_topic_count").toInt());
+    statusSeries->append(tr("已关闭"), stats.value("closed_topic_count").toInt());
 
     for (QPieSlice* slice : statusSeries->slices()) {
         slice->setLabelVisible(true);
         slice->setLabelPosition(QPieSlice::LabelOutside);
+        QString label = QString("%1: %2").arg(slice->label()).arg(slice->value());
+        slice->setLabel(label);
     }
 
     QChart* statusChart = new QChart();
     statusChart->addSeries(statusSeries);
     statusChart->setTitle(tr("课题状态分布"));
+    statusChart->setTitleFont(QFont("Arial", 12, QFont::Bold));
     statusChart->legend()->setAlignment(Qt::AlignBottom);
+    statusChart->legend()->setFont(QFont("Arial", 10));
+    statusChart->setMargins(QMargins(20, 20, 20, 20));
+    statusChart->legend()->show();
 
     QChartView* statusChartView = new QChartView(statusChart, statusGroup);
     statusChartView->setRenderHint(QPainter::Antialiasing);
-    statusChartView->setMinimumHeight(300);
-    statusLayout->addWidget(statusChartView);
+    statusChartView->setMinimumHeight(400);
+    statusChartView->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    statusLayout->addWidget(statusChartView, 1);
 
     layout->addWidget(statusGroup);
 
@@ -235,17 +281,26 @@ void StatisticsWindow::showTopicStatistics(const QJsonObject& stats)
     applyTable->setColumnCount(4);
     applyTable->setHorizontalHeaderLabels({tr("指标"), tr("数量"), tr("已申请"), tr("已完成")});
     applyTable->setRowCount(1);
+    applyTable->setFont(QFont("Arial", 11));
+    applyTable->setAlternatingRowColors(true);
+    applyTable->setStyleSheet("QTableWidget { border: 1px solid #dee2e6; } QHeaderView::section { background-color: #f8f9fa; padding: 8px; border: 1px solid #dee2e6; font-weight: bold; }");
 
     int totalTopics = stats.value("total_topic_count").toInt();
     int appliedTopics = stats.value("applied_topic_count").toInt();
     int completedTopics = stats.value("completed_topic_count").toInt();
 
-    applyTable->setItem(0, 0, new QTableWidgetItem(tr("总数")));
-    applyTable->setItem(0, 1, new QTableWidgetItem(QString::number(totalTopics)));
-    applyTable->setItem(0, 2, new QTableWidgetItem(QString::number(appliedTopics)));
-    applyTable->setItem(0, 3, new QTableWidgetItem(QString::number(completedTopics)));
+    QTableWidgetItem* item;
+    item = new QTableWidgetItem(tr("总数")); item->setTextAlignment(Qt::AlignCenter); applyTable->setItem(0, 0, item);
+    item = new QTableWidgetItem(QString::number(totalTopics)); item->setTextAlignment(Qt::AlignCenter); applyTable->setItem(0, 1, item);
+    item = new QTableWidgetItem(QString::number(appliedTopics)); item->setTextAlignment(Qt::AlignCenter); applyTable->setItem(0, 2, item);
+    item = new QTableWidgetItem(QString::number(completedTopics)); item->setTextAlignment(Qt::AlignCenter); applyTable->setItem(0, 3, item);
 
     applyTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    applyTable->horizontalHeader()->setDefaultSectionSize(120);
+    applyTable->horizontalHeader()->setMinimumHeight(35);
+    applyTable->verticalHeader()->setDefaultSectionSize(40);
+    applyTable->verticalHeader()->setVisible(false);
+    applyTable->setMinimumHeight(160);
     applyLayout->addWidget(applyTable);
 
     layout->addWidget(applyGroup);
@@ -281,6 +336,9 @@ void StatisticsWindow::showApplicationStatistics(const QJsonObject& stats)
     QChart* statusChart = new QChart();
     statusChart->addSeries(statusSeries);
     statusChart->setTitle(tr("申请状态分布"));
+    statusChart->setAnimationOptions(QChart::SeriesAnimations);
+    statusChart->legend()->setAlignment(Qt::AlignBottom);
+    statusChart->setMargins(QMargins(20, 20, 20, 20));
 
     QStringList categories;
     categories << tr("待审核") << tr("已通过") << tr("已驳回");
@@ -297,8 +355,9 @@ void StatisticsWindow::showApplicationStatistics(const QJsonObject& stats)
 
     QChartView* statusChartView = new QChartView(statusChart, statusGroup);
     statusChartView->setRenderHint(QPainter::Antialiasing);
-    statusChartView->setMinimumHeight(300);
-    statusLayout->addWidget(statusChartView);
+    statusChartView->setMinimumHeight(400);
+    statusChartView->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    statusLayout->addWidget(statusChartView, 1);
 
     layout->addWidget(statusGroup);
 
@@ -309,29 +368,38 @@ void StatisticsWindow::showApplicationStatistics(const QJsonObject& stats)
     detailTable->setColumnCount(3);
     detailTable->setHorizontalHeaderLabels({tr("指标"), tr("数量"), tr("占比")});
     detailTable->setRowCount(4);
+    detailTable->setFont(QFont("Arial", 11));
+    detailTable->setAlternatingRowColors(true);
+    detailTable->setStyleSheet("QTableWidget { border: 1px solid #dee2e6; } QHeaderView::section { background-color: #f8f9fa; padding: 8px; border: 1px solid #dee2e6; font-weight: bold; }");
 
     int totalApps = stats.value("total_count").toInt();
     int pendingCount = stats.value("pending_count").toInt();
     int approvedCount = stats.value("approved_count").toInt();
     int rejectedCount = stats.value("rejected_count").toInt();
 
-    detailTable->setItem(0, 0, new QTableWidgetItem(tr("总申请数")));
-    detailTable->setItem(0, 1, new QTableWidgetItem(QString::number(totalApps)));
-    detailTable->setItem(0, 2, new QTableWidgetItem(tr("100%")));
+    QTableWidgetItem* item;
+    item = new QTableWidgetItem(tr("总申请数")); item->setTextAlignment(Qt::AlignCenter); detailTable->setItem(0, 0, item);
+    item = new QTableWidgetItem(QString::number(totalApps)); item->setTextAlignment(Qt::AlignCenter); detailTable->setItem(0, 1, item);
+    item = new QTableWidgetItem("100%"); item->setTextAlignment(Qt::AlignCenter); detailTable->setItem(0, 2, item);
 
-    detailTable->setItem(1, 0, new QTableWidgetItem(tr("待审核")));
-    detailTable->setItem(1, 1, new QTableWidgetItem(QString::number(pendingCount)));
-    detailTable->setItem(1, 2, new QTableWidgetItem(QString("%.1f%%").arg(totalApps > 0 ? (pendingCount * 100.0 / totalApps) : 0)));
+    item = new QTableWidgetItem(tr("待审核")); item->setTextAlignment(Qt::AlignCenter); detailTable->setItem(1, 0, item);
+    item = new QTableWidgetItem(QString::number(pendingCount)); item->setTextAlignment(Qt::AlignCenter); detailTable->setItem(1, 1, item);
+    item = new QTableWidgetItem(QString::number(totalApps > 0 ? (pendingCount * 100.0 / totalApps) : 0, 'f', 1) + "%"); item->setTextAlignment(Qt::AlignCenter); detailTable->setItem(1, 2, item);
 
-    detailTable->setItem(2, 0, new QTableWidgetItem(tr("已通过")));
-    detailTable->setItem(2, 1, new QTableWidgetItem(QString::number(approvedCount)));
-    detailTable->setItem(2, 2, new QTableWidgetItem(QString("%.1f%%").arg(totalApps > 0 ? (approvedCount * 100.0 / totalApps) : 0)));
+    item = new QTableWidgetItem(tr("已通过")); item->setTextAlignment(Qt::AlignCenter); detailTable->setItem(2, 0, item);
+    item = new QTableWidgetItem(QString::number(approvedCount)); item->setTextAlignment(Qt::AlignCenter); detailTable->setItem(2, 1, item);
+    item = new QTableWidgetItem(QString::number(totalApps > 0 ? (approvedCount * 100.0 / totalApps) : 0, 'f', 1) + "%"); item->setTextAlignment(Qt::AlignCenter); detailTable->setItem(2, 2, item);
 
-    detailTable->setItem(3, 0, new QTableWidgetItem(tr("已驳回")));
-    detailTable->setItem(3, 1, new QTableWidgetItem(QString::number(rejectedCount)));
-    detailTable->setItem(3, 2, new QTableWidgetItem(QString("%.1f%%").arg(totalApps > 0 ? (rejectedCount * 100.0 / totalApps) : 0)));
+    item = new QTableWidgetItem(tr("已驳回")); item->setTextAlignment(Qt::AlignCenter); detailTable->setItem(3, 0, item);
+    item = new QTableWidgetItem(QString::number(rejectedCount)); item->setTextAlignment(Qt::AlignCenter); detailTable->setItem(3, 1, item);
+    item = new QTableWidgetItem(QString::number(totalApps > 0 ? (rejectedCount * 100.0 / totalApps) : 0, 'f', 1) + "%"); item->setTextAlignment(Qt::AlignCenter); detailTable->setItem(3, 2, item);
 
     detailTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    detailTable->horizontalHeader()->setDefaultSectionSize(120);
+    detailTable->horizontalHeader()->setMinimumHeight(35);
+    detailTable->verticalHeader()->setDefaultSectionSize(40);
+    detailTable->verticalHeader()->setVisible(false);
+    detailTable->setMinimumHeight(240);
     detailLayout->addWidget(detailTable);
 
     layout->addWidget(detailGroup);
@@ -507,10 +575,22 @@ void StatisticsWindow::onResponseReceived(const QString& requestId, const QJsonO
     QString message = response.value("message").toString();
 
     if (status == "success") {
-        if (currentRequestType == "GET_STATISTICS") {
+        if (currentRequestType == "GET_USER_INFO") {
+            QJsonObject data = response.value("data").toObject();
+            QJsonObject userInfo = data.value("user_info").toObject();
+            if (userType == 2) {
+                teacherId = userInfo.value("teacher_id").toInt();
+            } else if (userType == 3) {
+                groupId = userInfo.value("group_id").toInt();
+            }
+            currentRequestId.clear();
+            currentRequestType.clear();
+            loadStatistics();
+            return;
+        } else if (currentRequestType == "GET_STATISTICS") {
             QJsonObject data = response.value("data").toObject();
             currentStats = data.value("statistics").toObject();
-            
+
             if (currentStatType == "user") {
                 showUserStatistics(currentStats);
             } else if (currentStatType == "topic") {

@@ -1,3 +1,0 @@
-# Hashes of file build rules.
-3f10b1e76dee88276412965c82d076f4 CMakeFiles/StudentTopicSystemServer_autogen
-803d1024217dcd2d36c97abf84039d7d StudentTopicSystemServer_autogen/timestamp

@@ -1,9 +1,0 @@
-E:/code/Git/StudentManger/build/CMakeFiles/StudentTopicSystemServer.dir
-E:/code/Git/StudentManger/build/CMakeFiles/edit_cache.dir
-E:/code/Git/StudentManger/build/CMakeFiles/rebuild_cache.dir
-E:/code/Git/StudentManger/build/CMakeFiles/list_install_components.dir
-E:/code/Git/StudentManger/build/CMakeFiles/install.dir
-E:/code/Git/StudentManger/build/CMakeFiles/install/local.dir
-E:/code/Git/StudentManger/build/CMakeFiles/install/strip.dir
-E:/code/Git/StudentManger/build/CMakeFiles/StudentTopicSystemServer_autogen_timestamp_deps.dir
-E:/code/Git/StudentManger/build/CMakeFiles/StudentTopicSystemServer_autogen.dir

@@ -24,32 +24,58 @@ public:
 private slots:
     void onReadyRead()
     {
-        QByteArray data = socket->readAll();
-        qInfo() << "Received data from client" << socket->socketDescriptor() << ":" << data.trimmed();
-        QJsonParseError parseError;
-        QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
+        static QByteArray buffer;
+        buffer.append(socket->readAll());
 
-        if (parseError.error != QJsonParseError::NoError) {
-            sendErrorResponse("", "Invalid JSON format");
-            return;
+        qInfo() << "Raw buffer data:" << buffer.toHex(' ') << "(length:" << buffer.length() << ")";
+
+        // 处理可能的多个请求（按换行符分割）
+        int newlinePos = buffer.indexOf('\n');
+        while (newlinePos != -1) {
+            QByteArray requestData = buffer.left(newlinePos).trimmed();
+            buffer = buffer.mid(newlinePos + 1);
+
+            if (!requestData.isEmpty()) {
+                qInfo() << "Processing request data:" << requestData;
+                qInfo() << "Request data hex:" << requestData.toHex(' ');
+                
+                QJsonParseError parseError;
+                QJsonDocument doc = QJsonDocument::fromJson(requestData, &parseError);
+
+                if (parseError.error != QJsonParseError::NoError) {
+                    qWarning() << "JSON parse error at position" << parseError.offset << ":" << parseError.errorString();
+                    qWarning() << "Failed to parse:" << requestData;
+                    sendErrorResponse("", "Invalid JSON format: " + parseError.errorString());
+                    continue;
+                }
+
+                if (!doc.isObject()) {
+                    qWarning() << "Request is not a JSON object:" << requestData;
+                    sendErrorResponse("", "Request must be a JSON object");
+                    continue;
+                }
+
+                QJsonObject request = doc.object();
+                QString requestId = request.value("request_id").toString();
+                QString command = request.value("command").toString();
+                QJsonObject dataObj = request.value("data").toObject();
+
+                qInfo() << "Parsed request - ID:" << requestId << "Command:" << command;
+                qInfo() << "Request data:" << dataObj;
+
+                if (command.isEmpty()) {
+                    qWarning() << "Command is empty in request:" << request;
+                    sendErrorResponse(requestId, "Command is required");
+                    continue;
+                }
+
+                handleCommand(requestId, command, dataObj);
+            } else {
+                qInfo() << "Skipping empty request data";
+            }
+
+            newlinePos = buffer.indexOf('\n');
         }
-
-        if (!doc.isObject()) {
-            sendErrorResponse("", "Request must be a JSON object");
-            return;
-        }
-
-        QJsonObject request = doc.object();
-        QString requestId = request.value("request_id").toString();
-        QString command = request.value("command").toString();
-        QJsonObject dataObj = request.value("data").toObject();
-
-        if (command.isEmpty()) {
-            sendErrorResponse(requestId, "Command is required");
-            return;
-        }
-
-        handleCommand(requestId, command, dataObj);
     }
 
     void onDisconnected()
@@ -64,6 +90,11 @@ private slots:
         qWarning() << "Client error:" << socket->socketDescriptor() << "-" << socketError;
         socket->deleteLater();
         deleteLater();
+    }
+
+public:
+    qintptr socketDescriptor() const {
+        return socket->socketDescriptor();
     }
 
 private:
@@ -101,6 +132,8 @@ private:
             handleGetApplications(requestId, data);
         } else if (command == "GET_STATISTICS") {
             handleGetStatistics(requestId);
+        } else if (command == "USER_REGISTER") {
+            handleRegisterUser(requestId, data);
         } else {
             sendErrorResponse(requestId, QString("Unknown command: %1").arg(command));
         }
@@ -108,19 +141,26 @@ private:
 
     void handleLogin(const QString& requestId, const QJsonObject& data)
     {
-
-        qDebug()<<"接收到请求";
+        qDebug()<<"接收到登录请求";
+        qDebug()<<"请求数据:" << data;
+        
         QString username = data.value("username").toString();
         QString password = data.value("password").toString();
 
+        qDebug()<<"用户名:" << username << "密码:" << password;
+
         if (username.isEmpty() || password.isEmpty()) {
+            qWarning()<<"用户名或密码为空";
             sendErrorResponse(requestId, "Username and password are required");
             return;
         }
 
         QJsonObject userInfo = DatabaseHandler::getInstance()->validateUser(username, password);
 
+        qDebug()<<"数据库验证结果:" << userInfo;
+
         if (userInfo.isEmpty()) {
+            qWarning()<<"用户名或密码错误";
             sendErrorResponse(requestId, "Invalid username or password");
             return;
         }
@@ -128,6 +168,8 @@ private:
         // 获取完整用户信息
         int userId = userInfo.value("user_id").toInt();
         QJsonObject fullUserInfo = DatabaseHandler::getInstance()->getUserInfo(userId);
+
+        qDebug()<<"完整用户信息:" << fullUserInfo;
 
         QJsonObject response;
         response["status"] = "success";
@@ -137,6 +179,7 @@ private:
         responseData["user_info"] = fullUserInfo;
         response["data"] = responseData;
 
+        qDebug()<<"发送登录响应:" << response;
         sendResponse(requestId, response);
     }
 
@@ -194,6 +237,63 @@ private:
         } else {
             response["status"] = "fail";
             response["message"] = "Failed to add user";
+        }
+
+        sendResponse(requestId, response);
+    }
+
+    void handleRegisterUser(const QString& requestId, const QJsonObject& data)
+    {
+        // 检查必填字段
+        if (!data.contains("username") || !data.contains("password") || !data.contains("real_name")) {
+            sendErrorResponse(requestId, "Missing required fields: username, password, real_name are required");
+            return;
+        }
+
+        QString username = data.value("username").toString().trimmed();
+        QString password = data.value("password").toString();
+        QString realName = data.value("real_name").toString().trimmed();
+        int userType = data.value("user_type").toInt(3); // 默认是学生
+
+        if (username.isEmpty() || password.isEmpty() || realName.isEmpty()) {
+            sendErrorResponse(requestId, "Username, password, and real name cannot be empty");
+            return;
+        }
+
+        if (username.length() < 3 || username.length() > 20) {
+            sendErrorResponse(requestId, "Username must be between 3 and 20 characters");
+            return;
+        }
+
+        if (password.length() < 6) {
+            sendErrorResponse(requestId, "Password must be at least 6 characters long");
+            return;
+        }
+
+        // 检查用户名是否已存在
+        QJsonObject existingUser = DatabaseHandler::getInstance()->validateUser(username, password);
+        if (!existingUser.isEmpty()) {
+            sendErrorResponse(requestId, "Username already exists");
+            return;
+        }
+
+        // 创建用户数据
+        QJsonObject userData;
+        userData["username"] = username;
+        userData["password"] = password;
+        userData["real_name"] = realName;
+        userData["user_type"] = userType;
+        userData["status"] = 1; // 默认启用
+
+        bool success = DatabaseHandler::getInstance()->addUser(userData);
+
+        QJsonObject response;
+        if (success) {
+            response["status"] = "success";
+            response["message"] = "User registered successfully";
+        } else {
+            response["status"] = "fail";
+            response["message"] = "Failed to register user";
         }
 
         sendResponse(requestId, response);
@@ -478,7 +578,11 @@ int main(int argc, char *argv[])
         QThread *thread = new QThread();
         handler->moveToThread(thread);
         
-        QObject::connect(thread, &QThread::started, handler, &ClientHandler::deleteLater);
+        // 正确的线程管理逻辑
+        QObject::connect(thread, &QThread::started, handler, [handler]() {
+            qInfo() << "Client handler thread started for socket:" << handler->socketDescriptor();
+        });
+        QObject::connect(clientSocket, &QTcpSocket::disconnected, handler, &ClientHandler::deleteLater);
         QObject::connect(handler, &ClientHandler::destroyed, thread, &QThread::quit);
         QObject::connect(thread, &QThread::finished, thread, &QThread::deleteLater);
         

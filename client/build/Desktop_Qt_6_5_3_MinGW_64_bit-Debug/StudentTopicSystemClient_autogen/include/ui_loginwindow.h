@@ -37,9 +37,11 @@ public:
     QLabel *passwordLabel;
     QLineEdit *passwordLineEdit;
     QLabel *statusLabel;
+    QVBoxLayout *verticalLayout_3;
     QHBoxLayout *horizontalLayout;
     QPushButton *loginButton;
     QPushButton *exitButton;
+    QPushButton *registerButton;
     QLabel *copyrightLabel;
 
     void setupUi(QDialog *LoginWindow)
@@ -127,6 +129,9 @@ public:
 
         verticalLayout_2->addWidget(statusLabel);
 
+        verticalLayout_3 = new QVBoxLayout();
+        verticalLayout_3->setSpacing(6);
+        verticalLayout_3->setObjectName("verticalLayout_3");
         horizontalLayout = new QHBoxLayout();
         horizontalLayout->setSpacing(6);
         horizontalLayout->setObjectName("horizontalLayout");
@@ -154,17 +159,32 @@ public:
         horizontalLayout->addWidget(exitButton);
 
 
-        verticalLayout_2->addLayout(horizontalLayout);
+        verticalLayout_3->addLayout(horizontalLayout);
+
+        registerButton = new QPushButton(loginWidget);
+        registerButton->setObjectName("registerButton");
+        QFont font4;
+        font4.setFamilies({QString::fromUtf8("Microsoft YaHei")});
+        font4.setPointSize(11);
+        font4.setBold(false);
+        registerButton->setFont(font4);
+        registerButton->setStyleSheet(QString::fromUtf8("QPushButton { background-color: transparent; color: #007bff; border: none; padding: 5px; text-decoration: underline; }\n"
+"QPushButton:hover { color: #0056b3; }"));
+
+        verticalLayout_3->addWidget(registerButton);
+
+
+        verticalLayout_2->addLayout(verticalLayout_3);
 
 
         verticalLayout->addWidget(loginWidget);
 
         copyrightLabel = new QLabel(LoginWindow);
         copyrightLabel->setObjectName("copyrightLabel");
-        QFont font4;
-        font4.setFamilies({QString::fromUtf8("Microsoft YaHei")});
-        font4.setPointSize(9);
-        copyrightLabel->setFont(font4);
+        QFont font5;
+        font5.setFamilies({QString::fromUtf8("Microsoft YaHei")});
+        font5.setPointSize(9);
+        copyrightLabel->setFont(font5);
         copyrightLabel->setStyleSheet(QString::fromUtf8("color: #6c757d;"));
         copyrightLabel->setAlignment(Qt::AlignCenter);
 
@@ -185,6 +205,7 @@ public:
         statusLabel->setText(QString());
         loginButton->setText(QCoreApplication::translate("LoginWindow", "\347\231\273\345\275\225", nullptr));
         exitButton->setText(QCoreApplication::translate("LoginWindow", "\351\200\200\345\207\272", nullptr));
+        registerButton->setText(QCoreApplication::translate("LoginWindow", "\346\262\241\346\234\211\350\264\246\345\217\267\357\274\237\347\253\213\345\215\263\346\263\250\345\206\214", nullptr));
         copyrightLabel->setText(QCoreApplication::translate("LoginWindow", "\302\251 2024 \345\244\247\345\255\246\347\224\237\345\260\217\347\273\204\350\257\276\351\242\230\351\200\211\351\242\230\347\256\241\347\220\206\347\263\273\347\273\237 v1.0.0", nullptr));
     } // retranslateUi
 

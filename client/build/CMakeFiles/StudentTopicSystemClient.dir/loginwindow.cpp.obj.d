@@ -434,6 +434,18 @@ CMakeFiles/StudentTopicSystemClient.dir/loginwindow.cpp.obj: \
  C:/Qt/6.5.3/mingw_64/include/QtWidgets/QVBoxLayout \
  C:/Qt/6.5.3/mingw_64/include/QtWidgets/QWidget \
  C:/Qt/6.5.3/mingw_64/include/QtWidgets/qwidget.h \
+ C:\Users\fafer\Desktop\studentManager\client\mainwindow.h \
+ C:/Qt/6.5.3/mingw_64/include/QtWidgets/QMainWindow \
+ C:/Qt/6.5.3/mingw_64/include/QtWidgets/qmainwindow.h \
+ C:/Qt/6.5.3/mingw_64/include/QtWidgets/qtabwidget.h \
+ C:/Qt/6.5.3/mingw_64/include/QtWidgets/QStackedWidget \
+ C:/Qt/6.5.3/mingw_64/include/QtWidgets/qstackedwidget.h \
+ C:/Qt/6.5.3/mingw_64/include/QtWidgets/QMenuBar \
+ C:/Qt/6.5.3/mingw_64/include/QtWidgets/qmenubar.h \
+ C:/Qt/6.5.3/mingw_64/include/QtWidgets/qmenu.h \
+ C:/Qt/6.5.3/mingw_64/include/QtWidgets/QStatusBar \
+ C:/Qt/6.5.3/mingw_64/include/QtWidgets/qstatusbar.h \
+ C:/Qt/6.5.3/mingw_64/include/QtWidgets/QLabel \
  C:/Qt/6.5.3/mingw_64/include/QtGui/QKeyEvent \
  C:/Qt/6.5.3/mingw_64/include/QtGui/qevent.h \
  C:/Qt/6.5.3/mingw_64/include/QtCore/qpointer.h \
@@ -452,4 +464,16 @@ CMakeFiles/StudentTopicSystemClient.dir/loginwindow.cpp.obj: \
  C:/Qt/6.5.3/mingw_64/include/QtCore/qsize.h \
  C:/Qt/6.5.3/mingw_64/include/QtCore/QSizeF \
  C:/Qt/6.5.3/mingw_64/include/QtGui/QTransform \
- C:/Qt/6.5.3/mingw_64/include/QtGui/qtransform.h
+ C:/Qt/6.5.3/mingw_64/include/QtGui/qtransform.h \
+ C:/Qt/6.5.3/mingw_64/include/QtWidgets/QComboBox \
+ C:/Qt/6.5.3/mingw_64/include/QtWidgets/qcombobox.h \
+ C:/Qt/6.5.3/mingw_64/include/QtWidgets/qabstractitemdelegate.h \
+ C:/Qt/6.5.3/mingw_64/include/QtWidgets/qstyleoption.h \
+ C:/Qt/6.5.3/mingw_64/include/QtWidgets/qabstractspinbox.h \
+ C:/Qt/6.5.3/mingw_64/include/QtGui/qvalidator.h \
+ C:/Qt/6.5.3/mingw_64/include/QtWidgets/qslider.h \
+ C:/Qt/6.5.3/mingw_64/include/QtWidgets/qabstractslider.h \
+ C:/Qt/6.5.3/mingw_64/include/QtWidgets/qstyle.h \
+ C:/Qt/6.5.3/mingw_64/include/QtWidgets/qtabbar.h \
+ C:/Qt/6.5.3/mingw_64/include/QtWidgets/qrubberband.h \
+ C:/Qt/6.5.3/mingw_64/include/QtCore/qabstractitemmodel.h

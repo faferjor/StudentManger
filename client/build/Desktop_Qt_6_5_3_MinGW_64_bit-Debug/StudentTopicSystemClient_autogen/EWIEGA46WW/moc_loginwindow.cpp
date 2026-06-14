@@ -60,7 +60,7 @@ static constexpr auto qt_meta_stringdata_CLASSLoginWindowENDCLASS = QtMocHelpers
     "errorType",
     "errorMsg",
     "clearStatus",
-    "on_loginButton_clicked"
+    "onRegisterButtonClicked"
 );
 #else  // !QT_MOC_HAS_STRING_DATA
 struct qt_meta_stringdata_CLASSLoginWindowENDCLASS_t {
@@ -87,7 +87,7 @@ struct qt_meta_stringdata_CLASSLoginWindowENDCLASS_t {
     char stringdata19[10];
     char stringdata20[9];
     char stringdata21[12];
-    char stringdata22[23];
+    char stringdata22[24];
 };
 #define QT_MOC_LITERAL(ofs, len) \
     uint(sizeof(qt_meta_stringdata_CLASSLoginWindowENDCLASS_t::offsetsAndSizes) + ofs), len 
@@ -115,7 +115,7 @@ Q_CONSTINIT static const qt_meta_stringdata_CLASSLoginWindowENDCLASS_t qt_meta_s
         QT_MOC_LITERAL(263, 9),  // "errorType"
         QT_MOC_LITERAL(273, 8),  // "errorMsg"
         QT_MOC_LITERAL(282, 11),  // "clearStatus"
-        QT_MOC_LITERAL(294, 22)   // "on_loginButton_clicked"
+        QT_MOC_LITERAL(294, 23)   // "onRegisterButtonClicked"
     },
     "LoginWindow",
     "loginSuccess",
@@ -139,7 +139,7 @@ Q_CONSTINIT static const qt_meta_stringdata_CLASSLoginWindowENDCLASS_t qt_meta_s
     "errorType",
     "errorMsg",
     "clearStatus",
-    "on_loginButton_clicked"
+    "onRegisterButtonClicked"
 };
 #undef QT_MOC_LITERAL
 #endif // !QT_MOC_HAS_STRING_DATA
@@ -222,7 +222,7 @@ Q_CONSTINIT const QMetaObject LoginWindow::staticMetaObject = { {
         QtPrivate::TypeAndForceComplete<const QString &, std::false_type>,
         // method 'clearStatus'
         QtPrivate::TypeAndForceComplete<void, std::false_type>,
-        // method 'on_loginButton_clicked'
+        // method 'onRegisterButtonClicked'
         QtPrivate::TypeAndForceComplete<void, std::false_type>
     >,
     nullptr
@@ -242,7 +242,7 @@ void LoginWindow::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id,
         case 5: _t->onResponseReceived((*reinterpret_cast< std::add_pointer_t<QString>>(_a[1])),(*reinterpret_cast< std::add_pointer_t<QJsonObject>>(_a[2]))); break;
         case 6: _t->onErrorOccurred((*reinterpret_cast< std::add_pointer_t<NetworkManager::ErrorType>>(_a[1])),(*reinterpret_cast< std::add_pointer_t<QString>>(_a[2]))); break;
         case 7: _t->clearStatus(); break;
-        case 8: _t->on_loginButton_clicked(); break;
+        case 8: _t->onRegisterButtonClicked(); break;
         default: ;
         }
     } else if (_c == QMetaObject::IndexOfMethod) {

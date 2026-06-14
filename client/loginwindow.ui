@@ -128,43 +128,65 @@
        </widget>
       </item>
       <item>
-       <layout class="QHBoxLayout" name="horizontalLayout">
+       <layout class="QVBoxLayout" name="verticalLayout_3">
         <item>
-         <widget class="QPushButton" name="loginButton">
-          <property name="font">
-           <font>
-            <family>Microsoft YaHei</family>
-            <pointsize>12</pointsize>
-            <bold>true</bold>
-           </font>
-          </property>
-          <property name="styleSheet">
-           <string notr="true">QPushButton { background-color: #007bff; color: white; border: none; border-radius: 4px; padding: 10px 20px; }
+         <layout class="QHBoxLayout" name="horizontalLayout">
+          <item>
+           <widget class="QPushButton" name="loginButton">
+            <property name="font">
+             <font>
+              <family>Microsoft YaHei</family>
+              <pointsize>12</pointsize>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">QPushButton { background-color: #007bff; color: white; border: none; border-radius: 4px; padding: 10px 20px; }
 QPushButton:hover { background-color: #0056b3; }
 QPushButton:pressed { background-color: #004085; }
 QPushButton:disabled { background-color: #6c757d; }</string>
-          </property>
-          <property name="text">
-           <string>登录</string>
-          </property>
-         </widget>
+            </property>
+            <property name="text">
+             <string>登录</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="exitButton">
+            <property name="font">
+             <font>
+              <family>Microsoft YaHei</family>
+              <pointsize>12</pointsize>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">QPushButton { background-color: #6c757d; color: white; border: none; border-radius: 4px; padding: 10px 20px; }
+QPushButton:hover { background-color: #545b62; }
+QPushButton:pressed { background-color: #4e555b; }</string>
+            </property>
+            <property name="text">
+             <string>退出</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </item>
         <item>
-         <widget class="QPushButton" name="exitButton">
+         <widget class="QPushButton" name="registerButton">
           <property name="font">
            <font>
             <family>Microsoft YaHei</family>
-            <pointsize>12</pointsize>
-            <bold>true</bold>
+            <pointsize>11</pointsize>
+            <bold>false</bold>
            </font>
           </property>
           <property name="styleSheet">
-           <string notr="true">QPushButton { background-color: #6c757d; color: white; border: none; border-radius: 4px; padding: 10px 20px; }
-QPushButton:hover { background-color: #545b62; }
-QPushButton:pressed { background-color: #4e555b; }</string>
+           <string notr="true">QPushButton { background-color: transparent; color: #007bff; border: none; padding: 5px; text-decoration: underline; }
+QPushButton:hover { color: #0056b3; }</string>
           </property>
           <property name="text">
-           <string>退出</string>
+           <string>没有账号？立即注册</string>
           </property>
          </widget>
         </item>

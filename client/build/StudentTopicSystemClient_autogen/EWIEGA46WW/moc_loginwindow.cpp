@@ -59,11 +59,12 @@ static constexpr auto qt_meta_stringdata_CLASSLoginWindowENDCLASS = QtMocHelpers
     "NetworkManager::ErrorType",
     "errorType",
     "errorMsg",
-    "clearStatus"
+    "clearStatus",
+    "onRegisterButtonClicked"
 );
 #else  // !QT_MOC_HAS_STRING_DATA
 struct qt_meta_stringdata_CLASSLoginWindowENDCLASS_t {
-    uint offsetsAndSizes[44];
+    uint offsetsAndSizes[46];
     char stringdata0[12];
     char stringdata1[13];
     char stringdata2[1];
@@ -86,6 +87,7 @@ struct qt_meta_stringdata_CLASSLoginWindowENDCLASS_t {
     char stringdata19[10];
     char stringdata20[9];
     char stringdata21[12];
+    char stringdata22[24];
 };
 #define QT_MOC_LITERAL(ofs, len) \
     uint(sizeof(qt_meta_stringdata_CLASSLoginWindowENDCLASS_t::offsetsAndSizes) + ofs), len 
@@ -112,7 +114,8 @@ Q_CONSTINIT static const qt_meta_stringdata_CLASSLoginWindowENDCLASS_t qt_meta_s
         QT_MOC_LITERAL(237, 25),  // "NetworkManager::ErrorType"
         QT_MOC_LITERAL(263, 9),  // "errorType"
         QT_MOC_LITERAL(273, 8),  // "errorMsg"
-        QT_MOC_LITERAL(282, 11)   // "clearStatus"
+        QT_MOC_LITERAL(282, 11),  // "clearStatus"
+        QT_MOC_LITERAL(294, 23)   // "onRegisterButtonClicked"
     },
     "LoginWindow",
     "loginSuccess",
@@ -135,7 +138,8 @@ Q_CONSTINIT static const qt_meta_stringdata_CLASSLoginWindowENDCLASS_t qt_meta_s
     "NetworkManager::ErrorType",
     "errorType",
     "errorMsg",
-    "clearStatus"
+    "clearStatus",
+    "onRegisterButtonClicked"
 };
 #undef QT_MOC_LITERAL
 #endif // !QT_MOC_HAS_STRING_DATA
@@ -147,7 +151,7 @@ Q_CONSTINIT static const uint qt_meta_data_CLASSLoginWindowENDCLASS[] = {
       11,       // revision
        0,       // classname
        0,    0, // classinfo
-       8,   14, // methods
+       9,   14, // methods
        0,    0, // properties
        0,    0, // enums/sets
        0,    0, // constructors
@@ -155,16 +159,17 @@ Q_CONSTINIT static const uint qt_meta_data_CLASSLoginWindowENDCLASS[] = {
        2,       // signalCount
 
  // signals: name, argc, parameters, tag, flags, initial metatype offsets
-       1,    4,   62,    2, 0x06,    1 /* Public */,
-       7,    1,   71,    2, 0x06,    6 /* Public */,
+       1,    4,   68,    2, 0x06,    1 /* Public */,
+       7,    1,   77,    2, 0x06,    6 /* Public */,
 
  // slots: name, argc, parameters, tag, flags, initial metatype offsets
-       9,    0,   74,    2, 0x08,    8 /* Private */,
-      10,    0,   75,    2, 0x08,    9 /* Private */,
-      11,    1,   76,    2, 0x08,   10 /* Private */,
-      14,    2,   79,    2, 0x08,   12 /* Private */,
-      17,    2,   84,    2, 0x08,   15 /* Private */,
-      21,    0,   89,    2, 0x08,   18 /* Private */,
+       9,    0,   80,    2, 0x08,    8 /* Private */,
+      10,    0,   81,    2, 0x08,    9 /* Private */,
+      11,    1,   82,    2, 0x08,   10 /* Private */,
+      14,    2,   85,    2, 0x08,   12 /* Private */,
+      17,    2,   90,    2, 0x08,   15 /* Private */,
+      21,    0,   95,    2, 0x08,   18 /* Private */,
+      22,    0,   96,    2, 0x08,   19 /* Private */,
 
  // signals: parameters
     QMetaType::Void, QMetaType::Int, QMetaType::Int, QMetaType::QString, QMetaType::QString,    3,    4,    5,    6,
@@ -176,6 +181,7 @@ Q_CONSTINIT static const uint qt_meta_data_CLASSLoginWindowENDCLASS[] = {
     QMetaType::Void, 0x80000000 | 12,   13,
     QMetaType::Void, QMetaType::QString, QMetaType::QJsonObject,   15,   16,
     QMetaType::Void, 0x80000000 | 18, QMetaType::QString,   19,   20,
+    QMetaType::Void,
     QMetaType::Void,
 
        0        // eod
@@ -215,6 +221,8 @@ Q_CONSTINIT const QMetaObject LoginWindow::staticMetaObject = { {
         QtPrivate::TypeAndForceComplete<NetworkManager::ErrorType, std::false_type>,
         QtPrivate::TypeAndForceComplete<const QString &, std::false_type>,
         // method 'clearStatus'
+        QtPrivate::TypeAndForceComplete<void, std::false_type>,
+        // method 'onRegisterButtonClicked'
         QtPrivate::TypeAndForceComplete<void, std::false_type>
     >,
     nullptr
@@ -234,6 +242,7 @@ void LoginWindow::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id,
         case 5: _t->onResponseReceived((*reinterpret_cast< std::add_pointer_t<QString>>(_a[1])),(*reinterpret_cast< std::add_pointer_t<QJsonObject>>(_a[2]))); break;
         case 6: _t->onErrorOccurred((*reinterpret_cast< std::add_pointer_t<NetworkManager::ErrorType>>(_a[1])),(*reinterpret_cast< std::add_pointer_t<QString>>(_a[2]))); break;
         case 7: _t->clearStatus(); break;
+        case 8: _t->onRegisterButtonClicked(); break;
         default: ;
         }
     } else if (_c == QMetaObject::IndexOfMethod) {
@@ -274,13 +283,13 @@ int LoginWindow::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 8)
+        if (_id < 9)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 8;
+        _id -= 9;
     } else if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 8)
+        if (_id < 9)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 8;
+        _id -= 9;
     }
     return _id;
 }

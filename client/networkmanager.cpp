@@ -93,11 +93,17 @@ QString NetworkManager::sendRequest(const QString& command, const QJsonObject& d
     }
 
     QString requestId = generateRequestId();
-    QJsonObject request = createRequest(command, data);
+    
+    // 直接创建请求对象，不使用createRequest包装
+    QJsonObject request;
+    request["command"] = command;
     request["request_id"] = requestId;
+    request["data"] = data;
 
     QJsonDocument doc(request);
     QByteArray jsonData = doc.toJson(QJsonDocument::Compact) + "\n";
+
+    qDebug() << "发送请求:" << jsonData;
 
     QMutexLocker locker(&mutex);
     qint64 bytesWritten = socket->write(jsonData);
@@ -144,19 +150,8 @@ QString NetworkManager::sendRequestWithUserInfo(const QString& command, const QJ
         return QString();
     }
 
-    QJsonObject requestData = data;
-    
-    QJsonObject userInfo;
-    userInfo["user_id"] = currentUserId;
-    userInfo["user_type"] = currentUserType;
-    userInfo["username"] = currentUsername;
-    
-    // 创建完整的请求数据
-    QJsonObject fullData;
-    fullData["user_info"] = userInfo;
-    fullData["data"] = requestData;
-    
-    return sendRequest(command, fullData);
+    // 直接传递原始数据，不添加额外包装
+    return sendRequest(command, data);
 }
 
 void NetworkManager::setCurrentUser(int userId, int userType, const QString& username)

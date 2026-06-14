@@ -29,8 +29,7 @@ private slots:
     void onResponseReceived(const QString& requestId, const QJsonObject& response);
     void onErrorOccurred(NetworkManager::ErrorType errorType, const QString& errorMsg);
     void clearStatus();
-
-    void on_loginButton_clicked();
+    void onRegisterButtonClicked();
 
 private:
     void initUI();

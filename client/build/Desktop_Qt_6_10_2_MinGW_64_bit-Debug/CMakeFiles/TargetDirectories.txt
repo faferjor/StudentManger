@@ -1,9 +1,0 @@
-E:/code/Git/StudentManger/client/build/Desktop_Qt_6_10_2_MinGW_64_bit-Debug/CMakeFiles/StudentTopicSystemClient.dir
-E:/code/Git/StudentManger/client/build/Desktop_Qt_6_10_2_MinGW_64_bit-Debug/CMakeFiles/edit_cache.dir
-E:/code/Git/StudentManger/client/build/Desktop_Qt_6_10_2_MinGW_64_bit-Debug/CMakeFiles/rebuild_cache.dir
-E:/code/Git/StudentManger/client/build/Desktop_Qt_6_10_2_MinGW_64_bit-Debug/CMakeFiles/list_install_components.dir
-E:/code/Git/StudentManger/client/build/Desktop_Qt_6_10_2_MinGW_64_bit-Debug/CMakeFiles/install.dir
-E:/code/Git/StudentManger/client/build/Desktop_Qt_6_10_2_MinGW_64_bit-Debug/CMakeFiles/install/local.dir
-E:/code/Git/StudentManger/client/build/Desktop_Qt_6_10_2_MinGW_64_bit-Debug/CMakeFiles/install/strip.dir
-E:/code/Git/StudentManger/client/build/Desktop_Qt_6_10_2_MinGW_64_bit-Debug/CMakeFiles/StudentTopicSystemClient_autogen_timestamp_deps.dir
-E:/code/Git/StudentManger/client/build/Desktop_Qt_6_10_2_MinGW_64_bit-Debug/CMakeFiles/StudentTopicSystemClient_autogen.dir
